@@ -69,6 +69,14 @@ pub enum Error<BE> {
     Pd(PdError),
 }
 
+/// Power role
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum PowerRole {
+    Sink,
+    Source,
+}
+
 #[allow(clippy::from_over_into)]
 impl<T, BE> Into<Result<T, Error<BE>>> for PdError {
     fn into(self) -> Result<T, Error<BE>> {

@@ -38,6 +38,13 @@ impl Common for Pdo {
             _ => None,
         }
     }
+
+    fn is_dual_role(&self) -> bool {
+        match self {
+            Pdo::Fixed(data) => data.dual_role_power,
+            _ => false,
+        }
+    }
 }
 
 impl TryFrom<u32> for Pdo {

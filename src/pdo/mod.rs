@@ -120,6 +120,8 @@ pub trait Common {
     fn kind(&self) -> PdoKind;
     /// Get the APDO kind
     fn apdo_kind(&self) -> Option<ApdoKind>;
+    /// Return true if the PDO is a dual-rule PDO
+    fn is_dual_role(&self) -> bool;
 }
 
 /// Top-level PDO type
@@ -142,6 +144,13 @@ impl Common for Pdo {
         match self {
             Pdo::Source(pdo) => pdo.apdo_kind(),
             Pdo::Sink(pdo) => pdo.apdo_kind(),
+        }
+    }
+
+    fn is_dual_role(&self) -> bool {
+        match self {
+            Pdo::Source(pdo) => pdo.is_dual_role(),
+            Pdo::Sink(pdo) => pdo.is_dual_role(),
         }
     }
 }
