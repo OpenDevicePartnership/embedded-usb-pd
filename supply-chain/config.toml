@@ -1,0 +1,66 @@
+
+# cargo-vet config file
+
+[cargo-vet]
+version = "0.10"
+
+[imports.OpenDevicePartnership]
+url = "https://raw.githubusercontent.com/OpenDevicePartnership/rust-crate-audits/main/audits.toml"
+
+[imports.google]
+url = "https://raw.githubusercontent.com/google/rust-crate-audits/main/audits.toml"
+
+[imports.mozilla]
+url = "https://raw.githubusercontent.com/mozilla/supply-chain/main/audits.toml"
+
+[[exemptions.bitfield]]
+version = "0.19.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.bitfield-macros]]
+version = "0.19.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.defmt]]
+version = "0.3.100"
+criteria = "safe-to-deploy"
+
+[[exemptions.defmt]]
+version = "1.0.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.defmt-macros]]
+version = "1.0.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.defmt-parser]]
+version = "1.0.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.embedded-hal]]
+version = "1.0.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.embedded-hal-async]]
+version = "1.0.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.proc-macro-error-attr2]]
+version = "2.0.0"
+criteria = "safe-to-deploy"
+
+[[exemptions.proc-macro-error2]]
+version = "2.0.1"
+criteria = "safe-to-deploy"
+
+[[exemptions.syn]]
+version = "2.0.100"
+criteria = "safe-to-deploy"
+
+[[exemptions.thiserror]]
+version = "2.0.12"
+criteria = "safe-to-deploy"
+
+[[exemptions.thiserror-impl]]
+version = "2.0.12"
+criteria = "safe-to-deploy"
