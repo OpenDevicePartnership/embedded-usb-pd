@@ -1,7 +1,7 @@
 //! Types for the `pdinfo` command to query the PD controller for information on the current port and status.
 
 /// The status for the switches on the power path.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub struct PowerPathStatus(inner::PowerPathStatus);
 
 impl PowerPathStatus {
@@ -160,7 +160,7 @@ mod inner {
     use bitfield::bitfield;
 
     bitfield! {
-        #[derive(Clone, Copy)]
+        #[derive(Clone, Copy, Default, PartialEq, Eq)]
         pub struct PowerPathStatus(u8);
         impl new;
         u8;
