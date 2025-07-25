@@ -2,7 +2,6 @@
 use bitfield::bitfield;
 
 use super::*;
-use crate::PdError;
 
 /// Sink PDO
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -16,6 +15,12 @@ pub enum Pdo {
     Variable(VariableData),
     /// Augmented supply
     Augmented(Apdo),
+}
+
+impl Default for Pdo {
+    fn default() -> Self {
+        Pdo::Fixed(FixedData::default())
+    }
 }
 
 impl Common for Pdo {
@@ -39,14 +44,14 @@ impl Common for Pdo {
         }
     }
 
-    fn is_dual_role(&self) -> bool {
+    fn dual_role_power(&self) -> bool {
         match self {
             Pdo::Fixed(data) => data.dual_role_power,
             _ => false,
         }
     }
 
-    fn is_unconstrained_power(&self) -> bool {
+    fn unconstrained_power(&self) -> bool {
         match self {
             Pdo::Fixed(data) => data.unconstrained_power,
             _ => false,
@@ -55,7 +60,7 @@ impl Common for Pdo {
 }
 
 impl TryFrom<u32> for Pdo {
-    type Error = PdError;
+    type Error = InvalidData;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         match PdoKind::from(value) {
@@ -68,9 +73,10 @@ impl TryFrom<u32> for Pdo {
 }
 
 /// FRS required current
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum FrsRequiredCurrent {
+    #[default]
     /// Not supported
     None,
     /// USB default current
@@ -96,7 +102,7 @@ impl From<u8> for FrsRequiredCurrent {
 
 bitfield! {
     /// Fixed PDO raw data
-    #[derive(Copy, Clone, PartialEq, Eq)]
+    #[derive(Copy, Clone, Default, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct FixedRaw(u32);
     impl Debug;
@@ -122,7 +128,7 @@ bitfield! {
 }
 
 /// Fixed supply data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct FixedData {
     /// Dual role power
@@ -144,11 +150,11 @@ pub struct FixedData {
 }
 
 impl TryFrom<u32> for FixedData {
-    type Error = PdError;
+    type Error = InvalidData;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         if PdoKind::from(value) != PdoKind::Fixed {
-            return Err(PdError::InvalidParams);
+            return Err(InvalidData);
         }
 
         let raw = FixedRaw(value);
@@ -183,7 +189,7 @@ bitfield! {
 }
 
 /// Battery supply data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct BatteryData {
     /// Maximum voltage in mV
@@ -195,11 +201,11 @@ pub struct BatteryData {
 }
 
 impl TryFrom<u32> for BatteryData {
-    type Error = PdError;
+    type Error = InvalidData;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         if PdoKind::from(value) != PdoKind::Battery {
-            return Err(PdError::InvalidParams);
+            return Err(InvalidData);
         }
 
         let raw = BatteryRaw(value);
@@ -229,7 +235,7 @@ bitfield! {
 }
 
 /// Variable supply data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct VariableData {
     /// Maximum voltage in mV
@@ -241,11 +247,11 @@ pub struct VariableData {
 }
 
 impl TryFrom<u32> for VariableData {
-    type Error = PdError;
+    type Error = InvalidData;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         if PdoKind::from(value) != PdoKind::Variable {
-            return Err(PdError::InvalidParams);
+            return Err(InvalidData);
         }
 
         let raw = VariableRaw(value);
@@ -270,14 +276,20 @@ pub enum Apdo {
 }
 
 impl TryFrom<u32> for Apdo {
-    type Error = PdError;
+    type Error = InvalidData;
 
-    fn try_from(value: u32) -> Result<Self, PdError> {
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
         match ApdoKind::try_from(value)? {
             ApdoKind::SprPps => SprPpsData::try_from(value).map(Apdo::SprPps),
             ApdoKind::EprAvs => EprAvsData::try_from(value).map(Apdo::EprAvs),
             ApdoKind::SprAvs => SprAvsData::try_from(value).map(Apdo::SprAvs),
         }
+    }
+}
+
+impl Default for Apdo {
+    fn default() -> Self {
+        Apdo::SprPps(SprPpsData::default())
     }
 }
 
@@ -301,7 +313,7 @@ bitfield! {
 }
 
 /// ADO SPR Programable power supply data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SprPpsData {
     /// Maximum voltage in mV
@@ -313,11 +325,11 @@ pub struct SprPpsData {
 }
 
 impl TryFrom<u32> for SprPpsData {
-    type Error = PdError;
+    type Error = InvalidData;
 
-    fn try_from(value: u32) -> Result<Self, PdError> {
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
         if PdoKind::from(value) != PdoKind::Augmented || ApdoKind::try_from(value)? != ApdoKind::SprPps {
-            return Err(PdError::InvalidParams);
+            return Err(InvalidData);
         }
 
         let raw = SprPpsRaw(value);
@@ -349,7 +361,7 @@ bitfield! {
 }
 
 /// EPR Adjustable voltage supply data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct EprAvsData {
     /// Maximum voltage in mV
@@ -361,11 +373,11 @@ pub struct EprAvsData {
 }
 
 impl TryFrom<u32> for EprAvsData {
-    type Error = PdError;
+    type Error = InvalidData;
 
-    fn try_from(value: u32) -> Result<Self, PdError> {
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
         if PdoKind::from(value) != PdoKind::Augmented || ApdoKind::try_from(value)? != ApdoKind::EprAvs {
-            return Err(PdError::InvalidParams);
+            return Err(InvalidData);
         }
 
         let raw = EprAvsRaw(value);
@@ -395,7 +407,7 @@ bitfield! {
 }
 
 /// SPR Adjustable voltage supply data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SprAvsData {
     /// Maximum current for 9-15 V range in mA
@@ -405,11 +417,11 @@ pub struct SprAvsData {
 }
 
 impl TryFrom<u32> for SprAvsData {
-    type Error = PdError;
+    type Error = InvalidData;
 
-    fn try_from(value: u32) -> Result<Self, PdError> {
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
         if PdoKind::from(value) != PdoKind::Augmented || ApdoKind::try_from(value)? != ApdoKind::SprAvs {
-            return Err(PdError::InvalidParams);
+            return Err(InvalidData);
         }
 
         let raw = SprAvsRaw(value);

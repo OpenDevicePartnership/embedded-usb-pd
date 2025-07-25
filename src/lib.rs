@@ -137,3 +137,20 @@ impl<BE> From<PdError> for Error<BE> {
         Error::Pd(err)
     }
 }
+
+/// Zero-sized type for use by [`TryFrom`] and similar where [`PdError`] is too broad
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct InvalidData;
+
+impl From<InvalidData> for PdError {
+    fn from(_: InvalidData) -> Self {
+        PdError::InvalidParams
+    }
+}
+
+impl<BE> From<InvalidData> for Error<BE> {
+    fn from(data: InvalidData) -> Self {
+        Error::Pd(data.into())
+    }
+}

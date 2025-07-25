@@ -1,7 +1,7 @@
 //! Alert data object as defined in the USB PD specification 6.4.6
 use bitfield::{bitfield, Bit};
 
-use crate::PdError;
+use crate::{InvalidData, PdError};
 
 bitfield! {
     /// Battery status change flags
@@ -84,9 +84,9 @@ pub enum Ado {
 }
 
 impl TryFrom<AdoRaw> for Ado {
-    type Error = PdError;
+    type Error = InvalidData;
 
-    fn try_from(raw: AdoRaw) -> Result<Self, PdError> {
+    fn try_from(raw: AdoRaw) -> Result<Self, Self::Error> {
         match raw.alert_type() {
             // Standard alert types
             0x01 => Ok(Ado::BatteryStatusChange(BatteryStatusChange(BatteryStatusChangeRaw(
@@ -103,15 +103,15 @@ impl TryFrom<AdoRaw> for Ado {
                 0x02 => Ok(Ado::PowerButtonPress),
                 0x03 => Ok(Ado::PowerButtonRelease),
                 0x04 => Ok(Ado::ControllerInitiatedWake),
-                _ => Err(PdError::InvalidParams),
+                _ => Err(InvalidData),
             },
-            _ => Err(PdError::InvalidParams),
+            _ => Err(InvalidData),
         }
     }
 }
 
 impl TryFrom<u32> for Ado {
-    type Error = PdError;
+    type Error = InvalidData;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         AdoRaw(value).try_into()

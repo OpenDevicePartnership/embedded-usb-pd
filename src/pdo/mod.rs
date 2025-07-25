@@ -2,7 +2,7 @@
 //! This module defines source and sink PDOs. Each PDO type has a corresponding *Raw and *Data struct.
 //! The raw struct just provides a structured version of the raw PDO data, while the data struct provides
 //! a type-safe version.
-use crate::PdError;
+use crate::InvalidData;
 
 mod rdo;
 pub mod sink;
@@ -87,20 +87,20 @@ impl From<ApdoKind> for u8 {
 }
 
 impl TryFrom<u8> for ApdoKind {
-    type Error = PdError;
+    type Error = InvalidData;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x0 => Ok(ApdoKind::SprPps),
             0x1 => Ok(ApdoKind::EprAvs),
             0x2 => Ok(ApdoKind::SprAvs),
-            _ => Err(PdError::InvalidParams),
+            _ => Err(InvalidData),
         }
     }
 }
 
 impl TryFrom<u32> for ApdoKind {
-    type Error = PdError;
+    type Error = InvalidData;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         const APDO_KIND_SHIFT: u8 = 28;
@@ -109,7 +109,7 @@ impl TryFrom<u32> for ApdoKind {
             0x0 => Ok(ApdoKind::SprPps),
             0x1 => Ok(ApdoKind::EprAvs),
             0x2 => Ok(ApdoKind::SprAvs),
-            _ => Err(PdError::InvalidParams),
+            _ => Err(InvalidData),
         }
     }
 }
@@ -120,10 +120,10 @@ pub trait Common {
     fn kind(&self) -> PdoKind;
     /// Get the APDO kind
     fn apdo_kind(&self) -> Option<ApdoKind>;
-    /// Return true if the PDO is a dual-rule PDO
-    fn is_dual_role(&self) -> bool;
+    /// Return true if the PDO is a dual-role power PDO
+    fn dual_role_power(&self) -> bool;
     /// Return true if the PDO has unconstrained power
-    fn is_unconstrained_power(&self) -> bool;
+    fn unconstrained_power(&self) -> bool;
 }
 
 /// Top-level PDO type
@@ -149,17 +149,17 @@ impl Common for Pdo {
         }
     }
 
-    fn is_dual_role(&self) -> bool {
+    fn dual_role_power(&self) -> bool {
         match self {
-            Pdo::Source(pdo) => pdo.is_dual_role(),
-            Pdo::Sink(pdo) => pdo.is_dual_role(),
+            Pdo::Source(pdo) => pdo.dual_role_power(),
+            Pdo::Sink(pdo) => pdo.dual_role_power(),
         }
     }
 
-    fn is_unconstrained_power(&self) -> bool {
+    fn unconstrained_power(&self) -> bool {
         match self {
-            Pdo::Source(pdo) => pdo.is_unconstrained_power(),
-            Pdo::Sink(pdo) => pdo.is_unconstrained_power(),
+            Pdo::Source(pdo) => pdo.unconstrained_power(),
+            Pdo::Sink(pdo) => pdo.unconstrained_power(),
         }
     }
 }
