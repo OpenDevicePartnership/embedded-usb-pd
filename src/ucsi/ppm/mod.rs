@@ -1,4 +1,3 @@
-use crate::ucsi::cci::Cci;
 use crate::ucsi::{CommandHeader, CommandType};
 
 pub mod ack_cc_ci;
@@ -21,6 +20,19 @@ pub enum Command {
     AckCcCi(ack_cc_ci::Args),
     SetNotificationEnable(set_notification_enable::Args),
     GetCapability,
+}
+
+impl Command {
+    /// Returns the command type for this command
+    pub const fn command_type(&self) -> CommandType {
+        match self {
+            Command::PpmReset => CommandType::PpmReset,
+            Command::Cancel => CommandType::Cancel,
+            Command::AckCcCi(_) => CommandType::AckCcCi,
+            Command::SetNotificationEnable(_) => CommandType::SetNotificationEnable,
+            Command::GetCapability => CommandType::GetCapability,
+        }
+    }
 }
 
 impl Encode for Command {
@@ -70,29 +82,6 @@ impl Decode<()> for Command {
 /// PPM command response data
 #[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum ResponseData {
+pub enum Response {
     GetCapability(get_capability::ResponseData),
-}
-
-/// PPM command response
-#[derive(Copy, Clone, Debug)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Response {
-    /// CCI is produced by every command
-    pub status: Cci,
-    /// Response data for the command
-    pub data: Option<ResponseData>,
-}
-
-impl Response {
-    /// Create a new response with the given status and optional data
-    pub const fn new(status: Cci, data: Option<ResponseData>) -> Self {
-        Self { status, data }
-    }
-}
-
-impl From<Cci> for Response {
-    fn from(status: Cci) -> Self {
-        Self::new(status, None)
-    }
 }

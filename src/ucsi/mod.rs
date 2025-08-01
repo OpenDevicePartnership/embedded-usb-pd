@@ -120,12 +120,38 @@ pub enum Command {
     LpmCommand(lpm::Command),
 }
 
-/// UCSI command responses
+impl Command {
+    /// Returns the command type for this command
+    pub const fn command_type(&self) -> CommandType {
+        match self {
+            Command::PpmCommand(cmd) => cmd.command_type(),
+            Command::LpmCommand(cmd) => cmd.command_type(),
+        }
+    }
+}
+
+/// UCSI command response data
 #[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum Response {
+pub enum ResponseData {
     PpmResponse(ppm::Response),
     LpmResponse(lpm::Response),
+}
+
+/// UCSI command response
+#[derive(Copy, Clone, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct Response {
+    /// CCI is produced by every command
+    pub cci: cci::Cci,
+    /// Response data for the command
+    pub data: Option<ResponseData>,
+}
+
+impl From<cci::Cci> for Response {
+    fn from(cci: cci::Cci) -> Self {
+        Self { cci, data: None }
+    }
 }
 
 bitfield! {

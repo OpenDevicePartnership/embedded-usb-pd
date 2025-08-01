@@ -240,6 +240,21 @@ impl NotificationEnable {
         self.0.set_sink_path_change(val);
         self
     }
+
+    /// Returns true if no notification is enabled
+    pub fn is_empty(&self) -> bool {
+        self.0 .0 == 0
+    }
+
+    /// Returns the union of two notification enable sets
+    pub fn union(&self, other: &Self) -> Self {
+        NotificationEnable(NotificationEnableRaw(self.0 .0 | other.0 .0))
+    }
+
+    /// Returns the intersection of two notification enable sets
+    pub fn intersection(&self, other: &Self) -> Self {
+        NotificationEnable(NotificationEnableRaw(self.0 .0 & other.0 .0))
+    }
 }
 
 impl From<u32> for NotificationEnable {
