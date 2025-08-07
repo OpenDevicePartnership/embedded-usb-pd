@@ -1,5 +1,7 @@
 use crate::ucsi::CommandType;
-use crate::{GlobalPortId, PdError};
+use crate::GlobalPortId;
+
+pub mod get_connector_status;
 
 /// Connector reset types
 #[derive(Copy, Clone, Debug)]
@@ -43,8 +45,6 @@ impl Command {
 /// LPM response data
 #[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum ResponseData {
-    Complete,
+pub enum Response {
+    GetConnectorStatus(get_connector_status::ResponseData),
 }
-
-pub type Response = Result<ResponseData, PdError>;

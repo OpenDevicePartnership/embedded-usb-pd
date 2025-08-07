@@ -100,10 +100,13 @@ pub enum Error<BE> {
 }
 
 /// Power role
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum PowerRole {
+    /// Sink role
+    #[default]
     Sink,
+    /// Source role
     Source,
 }
 
@@ -118,13 +121,21 @@ pub enum DataRole {
 }
 
 /// Plug orientation
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum PlugOrientation {
     /// Upside-up orientation
+    #[default]
     CC1,
     /// Upside-down orientation
     CC2,
+}
+
+impl PlugOrientation {
+    /// Returns true if the plug orientation is flipped
+    pub fn flipped(&self) -> bool {
+        *self == PlugOrientation::CC2
+    }
 }
 
 impl<T, BE> From<PdError> for Result<T, Error<BE>> {

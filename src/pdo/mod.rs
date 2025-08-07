@@ -10,10 +10,14 @@ pub mod source;
 
 pub use rdo::Rdo;
 
+/// 5 mA unit
+pub const MA5_UNIT: u16 = 5;
 /// 10 mA unit
 pub const MA10_UNIT: u16 = 10;
 /// 50 mA unit
 pub const MA50_UNIT: u16 = 50;
+/// 5 mV unit
+pub const MV5_UNIT: u16 = 5;
 /// 20 mV unit
 pub const MV20_UNIT: u16 = 20;
 /// 50 mV unit
