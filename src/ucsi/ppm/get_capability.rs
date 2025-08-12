@@ -293,7 +293,7 @@ bitfield! {
     /// PPM supports USB Type-C spec with version given in [`GetCapabilityDataRaw::bcd_type_c_spec`]
     pub bool, usb_type_c_current, set_usb_type_c_current: 6;
     /// Supported power sources bitmap
-    pub u8, bm_power_source, set_bm_power_source: 8, 15;
+    pub u8, bm_power_source, set_bm_power_source: 15, 8;
 }
 
 /// Higher-level wrapper around [`AttributesRaw`]

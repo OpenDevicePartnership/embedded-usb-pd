@@ -1,4 +1,23 @@
 
 # cargo-vet audits file
 
-[audits]
+[[audits.aquamarine]]
+who = "Robert Zieba <robertzieba@microsoft.com>"
+criteria = "safe-to-deploy"
+version = "0.6.0"
+notes = "This is to embedded mermaid diagrams into docs, nothing gets deployed"
+
+[[audits.include_dir]]
+who = "Robert Zieba <robertzieba@microsoft.com>"
+criteria = "safe-to-deploy"
+version = "0.7.4"
+
+[[audits.include_dir_macros]]
+who = "Robert Zieba <robertzieba@microsoft.com>"
+criteria = "safe-to-deploy"
+version = "0.7.4"
+
+[[audits.itertools]]
+who = "Robert Zieba <robertzieba@microsoft.com>"
+criteria = "safe-to-deploy"
+version = "0.10.3"

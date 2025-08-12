@@ -2,7 +2,6 @@
 use bitfield::bitfield;
 
 use super::*;
-use crate::PdError;
 
 /// Sink PDO
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -16,6 +15,12 @@ pub enum Pdo {
     Variable(VariableData),
     /// Augmented supply
     Augmented(Apdo),
+}
+
+impl Default for Pdo {
+    fn default() -> Self {
+        Pdo::Fixed(FixedData::default())
+    }
 }
 
 impl Common for Pdo {
@@ -39,14 +44,14 @@ impl Common for Pdo {
         }
     }
 
-    fn is_dual_role(&self) -> bool {
+    fn dual_role_power(&self) -> bool {
         match self {
             Pdo::Fixed(data) => data.dual_role_power,
             _ => false,
         }
     }
 
-    fn is_unconstrained_power(&self) -> bool {
+    fn unconstrained_power(&self) -> bool {
         match self {
             Pdo::Fixed(data) => data.unconstrained_power,
             _ => false,
@@ -55,22 +60,27 @@ impl Common for Pdo {
 }
 
 impl TryFrom<u32> for Pdo {
-    type Error = PdError;
+    type Error = ExpectedPdo;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         match PdoKind::from(value) {
             PdoKind::Fixed => FixedData::try_from(value).map(Pdo::Fixed),
             PdoKind::Battery => BatteryData::try_from(value).map(Pdo::Battery),
             PdoKind::Variable => VariableData::try_from(value).map(Pdo::Variable),
-            PdoKind::Augmented => Apdo::try_from(value).map(Pdo::Augmented),
+            PdoKind::Augmented => Apdo::try_from(value).map(Pdo::Augmented).map_err(|_| ExpectedPdo {
+                kind: PdoKind::Augmented,
+                apdo_kind: None,
+                raw: value,
+            }),
         }
     }
 }
 
 /// FRS required current
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum FrsRequiredCurrent {
+    #[default]
     /// Not supported
     None,
     /// USB default current
@@ -96,7 +106,7 @@ impl From<u8> for FrsRequiredCurrent {
 
 bitfield! {
     /// Fixed PDO raw data
-    #[derive(Copy, Clone, PartialEq, Eq)]
+    #[derive(Copy, Clone, Default, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct FixedRaw(u32);
     impl Debug;
@@ -122,7 +132,7 @@ bitfield! {
 }
 
 /// Fixed supply data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct FixedData {
     /// Dual role power
@@ -143,25 +153,34 @@ pub struct FixedData {
     pub operational_current_ma: u16,
 }
 
-impl TryFrom<u32> for FixedData {
-    type Error = PdError;
-
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        if PdoKind::from(value) != PdoKind::Fixed {
-            return Err(PdError::InvalidParams);
-        }
-
-        let raw = FixedRaw(value);
-        Ok(FixedData {
+impl From<FixedRaw> for FixedData {
+    fn from(raw: FixedRaw) -> Self {
+        FixedData {
             dual_role_power: raw.dual_role_power() != 0,
             higher_capability: raw.higher_capability() != 0,
             unconstrained_power: raw.unconstrained_power() != 0,
             usb_comms_capable: raw.usb_comms_capable() != 0,
             dual_role_data: raw.dual_role_data() != 0,
-            frs_required_current: raw.frs_required_current().into(),
+            frs_required_current: FrsRequiredCurrent::from(raw.frs_required_current()),
             voltage_mv: raw.voltage() * MV50_UNIT,
             operational_current_ma: raw.operational_current() * MA10_UNIT,
-        })
+        }
+    }
+}
+
+impl TryFrom<u32> for FixedData {
+    type Error = ExpectedPdo;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if PdoKind::from(value) == PdoKind::Fixed {
+            Ok(FixedRaw(value).into())
+        } else {
+            Err(ExpectedPdo {
+                kind: PdoKind::Fixed,
+                apdo_kind: None,
+                raw: value,
+            })
+        }
     }
 }
 
@@ -183,7 +202,7 @@ bitfield! {
 }
 
 /// Battery supply data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct BatteryData {
     /// Maximum voltage in mV
@@ -194,20 +213,29 @@ pub struct BatteryData {
     pub operational_power_mw: u32,
 }
 
-impl TryFrom<u32> for BatteryData {
-    type Error = PdError;
-
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        if PdoKind::from(value) != PdoKind::Battery {
-            return Err(PdError::InvalidParams);
-        }
-
-        let raw = BatteryRaw(value);
-        Ok(BatteryData {
+impl From<BatteryRaw> for BatteryData {
+    fn from(raw: BatteryRaw) -> Self {
+        BatteryData {
             max_voltage_mv: raw.max_voltage() * MV50_UNIT,
             min_voltage_mv: raw.min_voltage() * MV50_UNIT,
             operational_power_mw: raw.operational_power() * MW250_UNIT,
-        })
+        }
+    }
+}
+
+impl TryFrom<u32> for BatteryData {
+    type Error = ExpectedPdo;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if PdoKind::from(value) == PdoKind::Battery {
+            Ok(BatteryRaw(value).into())
+        } else {
+            Err(ExpectedPdo {
+                kind: PdoKind::Battery,
+                apdo_kind: None,
+                raw: value,
+            })
+        }
     }
 }
 
@@ -229,7 +257,7 @@ bitfield! {
 }
 
 /// Variable supply data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct VariableData {
     /// Maximum voltage in mV
@@ -240,20 +268,29 @@ pub struct VariableData {
     pub operational_current_ma: u16,
 }
 
-impl TryFrom<u32> for VariableData {
-    type Error = PdError;
-
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
-        if PdoKind::from(value) != PdoKind::Variable {
-            return Err(PdError::InvalidParams);
-        }
-
-        let raw = VariableRaw(value);
-        Ok(VariableData {
+impl From<VariableRaw> for VariableData {
+    fn from(raw: VariableRaw) -> Self {
+        VariableData {
             max_voltage_mv: raw.max_voltage() * MV50_UNIT,
             min_voltage_mv: raw.min_voltage() * MV50_UNIT,
             operational_current_ma: raw.operational_current() * MA10_UNIT,
-        })
+        }
+    }
+}
+
+impl TryFrom<u32> for VariableData {
+    type Error = ExpectedPdo;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        if PdoKind::from(value) == PdoKind::Variable {
+            Ok(VariableRaw(value).into())
+        } else {
+            Err(ExpectedPdo {
+                kind: PdoKind::Variable,
+                apdo_kind: None,
+                raw: value,
+            })
+        }
     }
 }
 
@@ -270,14 +307,24 @@ pub enum Apdo {
 }
 
 impl TryFrom<u32> for Apdo {
-    type Error = PdError;
+    type Error = ExpectedPdo;
 
-    fn try_from(value: u32) -> Result<Self, PdError> {
-        match ApdoKind::try_from(value)? {
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match ApdoKind::try_from(value).map_err(|_| ExpectedPdo {
+            kind: PdoKind::Augmented,
+            apdo_kind: None,
+            raw: value,
+        })? {
             ApdoKind::SprPps => SprPpsData::try_from(value).map(Apdo::SprPps),
             ApdoKind::EprAvs => EprAvsData::try_from(value).map(Apdo::EprAvs),
             ApdoKind::SprAvs => SprAvsData::try_from(value).map(Apdo::SprAvs),
         }
+    }
+}
+
+impl Default for Apdo {
+    fn default() -> Self {
+        Apdo::SprPps(SprPpsData::default())
     }
 }
 
@@ -301,7 +348,7 @@ bitfield! {
 }
 
 /// ADO SPR Programable power supply data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SprPpsData {
     /// Maximum voltage in mV
@@ -312,20 +359,28 @@ pub struct SprPpsData {
     pub max_current_ma: u16,
 }
 
-impl TryFrom<u32> for SprPpsData {
-    type Error = PdError;
-
-    fn try_from(value: u32) -> Result<Self, PdError> {
-        if PdoKind::from(value) != PdoKind::Augmented || ApdoKind::try_from(value)? != ApdoKind::SprPps {
-            return Err(PdError::InvalidParams);
-        }
-
-        let raw = SprPpsRaw(value);
-        Ok(SprPpsData {
+impl From<SprPpsRaw> for SprPpsData {
+    fn from(raw: SprPpsRaw) -> Self {
+        SprPpsData {
             max_voltage_mv: raw.max_voltage() * MV100_UNIT,
             min_voltage_mv: raw.min_voltage() * MV100_UNIT,
             max_current_ma: raw.max_current() * MA50_UNIT,
-        })
+        }
+    }
+}
+
+impl TryFrom<u32> for SprPpsData {
+    type Error = ExpectedPdo;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match (PdoKind::from(value), ApdoKind::try_from(value)) {
+            (PdoKind::Augmented, Ok(ApdoKind::SprPps)) => Ok(SprPpsRaw(value).into()),
+            _ => Err(ExpectedPdo {
+                kind: PdoKind::Augmented,
+                apdo_kind: Some(ApdoKind::SprPps),
+                raw: value,
+            }),
+        }
     }
 }
 
@@ -349,7 +404,7 @@ bitfield! {
 }
 
 /// EPR Adjustable voltage supply data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct EprAvsData {
     /// Maximum voltage in mV
@@ -360,20 +415,28 @@ pub struct EprAvsData {
     pub pdp_mw: u32,
 }
 
-impl TryFrom<u32> for EprAvsData {
-    type Error = PdError;
-
-    fn try_from(value: u32) -> Result<Self, PdError> {
-        if PdoKind::from(value) != PdoKind::Augmented || ApdoKind::try_from(value)? != ApdoKind::EprAvs {
-            return Err(PdError::InvalidParams);
-        }
-
-        let raw = EprAvsRaw(value);
-        Ok(EprAvsData {
+impl From<EprAvsRaw> for EprAvsData {
+    fn from(raw: EprAvsRaw) -> Self {
+        EprAvsData {
             max_voltage_mv: raw.max_voltage() * MV100_UNIT,
             min_voltage_mv: raw.min_voltage() * MV100_UNIT,
             pdp_mw: raw.pdp() * MW1000_UNIT,
-        })
+        }
+    }
+}
+
+impl TryFrom<u32> for EprAvsData {
+    type Error = ExpectedPdo;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match (PdoKind::from(value), ApdoKind::try_from(value)) {
+            (PdoKind::Augmented, Ok(ApdoKind::EprAvs)) => Ok(EprAvsRaw(value).into()),
+            _ => Err(ExpectedPdo {
+                kind: PdoKind::Augmented,
+                apdo_kind: Some(ApdoKind::EprAvs),
+                raw: value,
+            }),
+        }
     }
 }
 
@@ -395,7 +458,7 @@ bitfield! {
 }
 
 /// SPR Adjustable voltage supply data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SprAvsData {
     /// Maximum current for 9-15 V range in mA
@@ -404,18 +467,26 @@ pub struct SprAvsData {
     pub max_current_20v_ma: u16,
 }
 
-impl TryFrom<u32> for SprAvsData {
-    type Error = PdError;
-
-    fn try_from(value: u32) -> Result<Self, PdError> {
-        if PdoKind::from(value) != PdoKind::Augmented || ApdoKind::try_from(value)? != ApdoKind::SprAvs {
-            return Err(PdError::InvalidParams);
-        }
-
-        let raw = SprAvsRaw(value);
-        Ok(SprAvsData {
+impl From<SprAvsRaw> for SprAvsData {
+    fn from(raw: SprAvsRaw) -> Self {
+        SprAvsData {
             max_current_15v_ma: raw.max_current_15v() * MA10_UNIT,
             max_current_20v_ma: raw.max_current_20v() * MA10_UNIT,
-        })
+        }
+    }
+}
+
+impl TryFrom<u32> for SprAvsData {
+    type Error = ExpectedPdo;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        match (PdoKind::from(value), ApdoKind::try_from(value)) {
+            (PdoKind::Augmented, Ok(ApdoKind::SprAvs)) => Ok(SprAvsRaw(value).into()),
+            _ => Err(ExpectedPdo {
+                kind: PdoKind::Augmented,
+                apdo_kind: Some(ApdoKind::SprAvs),
+                raw: value,
+            }),
+        }
     }
 }

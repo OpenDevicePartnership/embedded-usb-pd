@@ -6,6 +6,8 @@ use bincode::enc::{Encode, Encoder};
 use bincode::error::{AllowedEnumVariants, DecodeError, EncodeError};
 use bitfield::bitfield;
 
+use crate::PdError;
+
 pub mod cci;
 pub mod lpm;
 pub mod ppm;
@@ -51,8 +53,19 @@ pub enum CommandType {
     GetLpmPpmInfo,
 }
 
+/// Invalid command type error
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct InvalidCommandType(pub u8);
+
+impl From<InvalidCommandType> for PdError {
+    fn from(_: InvalidCommandType) -> Self {
+        PdError::InvalidParams
+    }
+}
+
 impl TryFrom<u8> for CommandType {
-    type Error = ();
+    type Error = InvalidCommandType;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -88,7 +101,7 @@ impl TryFrom<u8> for CommandType {
             0x1E => Ok(CommandType::ChunkingSupport),
             0x21 => Ok(CommandType::SetUsb),
             0x22 => Ok(CommandType::GetLpmPpmInfo),
-            _ => Err(()),
+            _ => Err(InvalidCommandType(value)),
         }
     }
 }
@@ -107,12 +120,38 @@ pub enum Command {
     LpmCommand(lpm::Command),
 }
 
-/// UCSI command responses
+impl Command {
+    /// Returns the command type for this command
+    pub const fn command_type(&self) -> CommandType {
+        match self {
+            Command::PpmCommand(cmd) => cmd.command_type(),
+            Command::LpmCommand(cmd) => cmd.command_type(),
+        }
+    }
+}
+
+/// UCSI command response data
 #[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum Response {
+pub enum ResponseData {
     PpmResponse(ppm::Response),
     LpmResponse(lpm::Response),
+}
+
+/// UCSI command response
+#[derive(Copy, Clone, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct Response {
+    /// CCI is produced by every command
+    pub cci: cci::Cci,
+    /// Response data for the command
+    pub data: Option<ResponseData>,
+}
+
+impl From<cci::Cci> for Response {
+    fn from(cci: cci::Cci) -> Self {
+        Self { cci, data: None }
+    }
 }
 
 bitfield! {
@@ -167,7 +206,7 @@ impl CommandHeader {
 }
 
 impl TryFrom<u16> for CommandHeader {
-    type Error = ();
+    type Error = InvalidCommandType;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         let raw = CommandHeaderRaw(value);

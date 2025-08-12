@@ -10,10 +10,14 @@ pub mod source;
 
 pub use rdo::Rdo;
 
+/// 5 mA unit
+pub const MA5_UNIT: u16 = 5;
 /// 10 mA unit
 pub const MA10_UNIT: u16 = 10;
 /// 50 mA unit
 pub const MA50_UNIT: u16 = 50;
+/// 5 mV unit
+pub const MV5_UNIT: u16 = 5;
 /// 20 mV unit
 pub const MV20_UNIT: u16 = 20;
 /// 50 mV unit
@@ -65,6 +69,17 @@ impl From<PdoKind> for u8 {
     }
 }
 
+/// Invalid APDO kind error, contains the raw value that failed to decode
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct InvalidApdoKind(pub u8);
+
+impl From<InvalidApdoKind> for PdError {
+    fn from(_: InvalidApdoKind) -> Self {
+        PdError::InvalidParams
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ApdoKind {
@@ -87,29 +102,30 @@ impl From<ApdoKind> for u8 {
 }
 
 impl TryFrom<u8> for ApdoKind {
-    type Error = PdError;
+    type Error = InvalidApdoKind;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x0 => Ok(ApdoKind::SprPps),
             0x1 => Ok(ApdoKind::EprAvs),
             0x2 => Ok(ApdoKind::SprAvs),
-            _ => Err(PdError::InvalidParams),
+            _ => Err(InvalidApdoKind(value)),
         }
     }
 }
 
 impl TryFrom<u32> for ApdoKind {
-    type Error = PdError;
+    type Error = InvalidApdoKind;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         const APDO_KIND_SHIFT: u8 = 28;
         const APDO_KIND_MASK: u32 = 0x3;
-        match (value >> APDO_KIND_SHIFT) & APDO_KIND_MASK {
+        let kind = ((value >> APDO_KIND_SHIFT) & APDO_KIND_MASK) as u8;
+        match kind {
             0x0 => Ok(ApdoKind::SprPps),
             0x1 => Ok(ApdoKind::EprAvs),
             0x2 => Ok(ApdoKind::SprAvs),
-            _ => Err(PdError::InvalidParams),
+            _ => Err(InvalidApdoKind(kind)),
         }
     }
 }
@@ -120,10 +136,10 @@ pub trait Common {
     fn kind(&self) -> PdoKind;
     /// Get the APDO kind
     fn apdo_kind(&self) -> Option<ApdoKind>;
-    /// Return true if the PDO is a dual-rule PDO
-    fn is_dual_role(&self) -> bool;
+    /// Return true if the PDO is a dual-role power PDO
+    fn dual_role_power(&self) -> bool;
     /// Return true if the PDO has unconstrained power
-    fn is_unconstrained_power(&self) -> bool;
+    fn unconstrained_power(&self) -> bool;
 }
 
 /// Top-level PDO type
@@ -149,17 +165,35 @@ impl Common for Pdo {
         }
     }
 
-    fn is_dual_role(&self) -> bool {
+    fn dual_role_power(&self) -> bool {
         match self {
-            Pdo::Source(pdo) => pdo.is_dual_role(),
-            Pdo::Sink(pdo) => pdo.is_dual_role(),
+            Pdo::Source(pdo) => pdo.dual_role_power(),
+            Pdo::Sink(pdo) => pdo.dual_role_power(),
         }
     }
 
-    fn is_unconstrained_power(&self) -> bool {
+    fn unconstrained_power(&self) -> bool {
         match self {
-            Pdo::Source(pdo) => pdo.is_unconstrained_power(),
-            Pdo::Sink(pdo) => pdo.is_unconstrained_power(),
+            Pdo::Source(pdo) => pdo.unconstrained_power(),
+            Pdo::Sink(pdo) => pdo.unconstrained_power(),
         }
+    }
+}
+
+/// Error type for decoding PDOs
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct ExpectedPdo {
+    /// Expected PDO kind
+    pub kind: PdoKind,
+    /// Expected APDO kind, if applicable
+    pub apdo_kind: Option<ApdoKind>,
+    /// Raw PDO value that failed to be decoded
+    pub raw: u32,
+}
+
+impl From<ExpectedPdo> for PdError {
+    fn from(_: ExpectedPdo) -> Self {
+        PdError::InvalidParams
     }
 }

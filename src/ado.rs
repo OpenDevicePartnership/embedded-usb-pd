@@ -3,6 +3,17 @@ use bitfield::{bitfield, Bit};
 
 use crate::PdError;
 
+/// Error type for ADO conversion, contains the complete undecoded ADO
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct InvalidType(pub u32);
+
+impl From<InvalidType> for PdError {
+    fn from(_: InvalidType) -> Self {
+        PdError::InvalidParams
+    }
+}
+
 bitfield! {
     /// Battery status change flags
     #[derive(Copy, Clone, PartialEq, Eq)]
@@ -84,9 +95,9 @@ pub enum Ado {
 }
 
 impl TryFrom<AdoRaw> for Ado {
-    type Error = PdError;
+    type Error = InvalidType;
 
-    fn try_from(raw: AdoRaw) -> Result<Self, PdError> {
+    fn try_from(raw: AdoRaw) -> Result<Self, Self::Error> {
         match raw.alert_type() {
             // Standard alert types
             0x01 => Ok(Ado::BatteryStatusChange(BatteryStatusChange(BatteryStatusChangeRaw(
@@ -103,15 +114,15 @@ impl TryFrom<AdoRaw> for Ado {
                 0x02 => Ok(Ado::PowerButtonPress),
                 0x03 => Ok(Ado::PowerButtonRelease),
                 0x04 => Ok(Ado::ControllerInitiatedWake),
-                _ => Err(PdError::InvalidParams),
+                _ => Err(InvalidType(raw.0)),
             },
-            _ => Err(PdError::InvalidParams),
+            _ => Err(InvalidType(raw.0)),
         }
     }
 }
 
 impl TryFrom<u32> for Ado {
-    type Error = PdError;
+    type Error = InvalidType;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         AdoRaw(value).try_into()

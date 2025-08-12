@@ -10,9 +10,9 @@ bitfield! {
     /// End of message
     pub bool, eom, set_eom: 0;
     /// Connector change on the given port
-    pub u8, connector_change, set_connector_change: 1, 7;
+    pub u8, connector_change, set_connector_change: 7, 1;
     /// Length of returned data
-    pub u8, data_len, set_data_len: 8, 15;
+    pub u8, data_len, set_data_len: 15, 8;
     /// Vendor defined message
     pub bool, vendor_message, set_vendor_message: 16;
     /// Security request
@@ -182,6 +182,26 @@ impl Cci {
     pub fn set_cmd_complete(&mut self, cmd_complete: bool) -> &mut Self {
         self.0.set_cmd_complete(cmd_complete);
         self
+    }
+
+    /// Create a new CCI with command complete set
+    pub fn new_cmd_complete() -> Self {
+        *Cci::default().set_cmd_complete(true)
+    }
+
+    /// Create a new CCI with busy set
+    pub fn new_busy() -> Self {
+        *Cci::default().set_busy(true)
+    }
+
+    /// Create a new CCI with reset complete set
+    pub fn new_reset_complete() -> Self {
+        *Cci::default().set_reset_complete(true)
+    }
+
+    /// Create a new CCI with error set
+    pub fn new_error() -> Self {
+        *Cci::default().set_error(true)
     }
 }
 
