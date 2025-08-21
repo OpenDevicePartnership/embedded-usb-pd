@@ -6,6 +6,7 @@ pub mod pdinfo;
 pub mod pdo;
 pub mod type_c;
 pub mod ucsi;
+pub mod vdm;
 
 /// Port ID new type.
 ///
