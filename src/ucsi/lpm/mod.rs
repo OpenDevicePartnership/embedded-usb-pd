@@ -7,6 +7,7 @@ use bitfield::bitfield;
 use crate::ucsi::{cci, CommandHeader, CommandType};
 use crate::{GlobalPortId, LocalPortId, PortId};
 
+pub mod get_connector_capability;
 pub mod get_connector_status;
 
 /// Connector reset types
@@ -23,6 +24,7 @@ pub enum ResetType {
 pub enum CommandData {
     ConnectorReset(ResetType),
     GetConnectorStatus,
+    GetConnectorCapability,
 }
 
 impl CommandData {
@@ -31,6 +33,7 @@ impl CommandData {
         match self {
             CommandData::ConnectorReset(_) => CommandType::ConnectorReset,
             CommandData::GetConnectorStatus => CommandType::GetConnectorStatus,
+            CommandData::GetConnectorCapability => CommandType::GetConnectorCapability,
         }
     }
 }
@@ -59,6 +62,11 @@ impl<T: PortId> Encode for Command<T> {
                 raw_port.encode(encoder)?;
                 get_connector_status::Args.encode(encoder)
             }
+            CommandData::GetConnectorCapability => {
+                let raw_port: u8 = self.port.into();
+                raw_port.encode(encoder)?;
+                get_connector_capability::Args.encode(encoder)
+            }
             _ => Err(EncodeError::Other("Unsupported command")),
         }
     }
@@ -74,6 +82,15 @@ impl<T: PortId> Decode<CommandHeader> for Command<T> {
                 Ok(Command {
                     port: From::from(connector_number),
                     operation: CommandData::GetConnectorStatus,
+                })
+            }
+            CommandType::GetConnectorCapability => {
+                let connector_number = ConnectorNumberRaw::decode(decoder)?.connector_number();
+                // Don't actually have any args, but need to consume command padding
+                let _args = get_connector_capability::Args::decode(decoder)?;
+                Ok(Command {
+                    port: From::from(connector_number),
+                    operation: CommandData::GetConnectorCapability,
                 })
             }
             command_type => Err(DecodeError::UnexpectedVariant {
@@ -100,12 +117,14 @@ pub type LocalCommand = Command<LocalPortId>;
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ResponseData {
     GetConnectorStatus(get_connector_status::ResponseData),
+    GetConnectorCapability(get_connector_capability::ResponseData),
 }
 
 impl Encode for ResponseData {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         match self {
             ResponseData::GetConnectorStatus(data) => data.encode(encoder),
+            ResponseData::GetConnectorCapability(data) => data.encode(encoder),
         }
     }
 }
@@ -115,6 +134,9 @@ impl Decode<CommandType> for ResponseData {
         match decoder.context() {
             CommandType::GetConnectorStatus => Ok(ResponseData::GetConnectorStatus(
                 get_connector_status::ResponseData::decode(decoder)?,
+            )),
+            CommandType::GetConnectorCapability => Ok(ResponseData::GetConnectorCapability(
+                get_connector_capability::ResponseData::decode(decoder)?,
             )),
             command_type => Err(DecodeError::UnexpectedVariant {
                 type_name: "CommandType",
@@ -185,6 +207,24 @@ mod tests {
             GlobalCommand {
                 port: GlobalPortId(1),
                 operation: CommandData::GetConnectorStatus,
+            }
+        );
+    }
+
+    #[test]
+    fn test_decode_get_connector_capability() {
+        let mut bytes = [0u8; COMMAND_LEN];
+        bytes[0] = CommandType::GetConnectorCapability as u8;
+        bytes[2] = 0x1;
+
+        let (get_connector_capability, consumed): (GlobalCommand, usize) =
+            decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
+        assert_eq!(consumed, bytes.len());
+        assert_eq!(
+            get_connector_capability,
+            GlobalCommand {
+                port: GlobalPortId(1),
+                operation: CommandData::GetConnectorCapability,
             }
         );
     }
