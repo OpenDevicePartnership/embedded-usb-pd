@@ -21,6 +21,6 @@ pub enum VdmCmd {
     ExitMode = 5,
     /// Attention
     Attention = 6,
-    /// Custom vendor SVID Commands Start here
+    /// Custom vendor SVID Commands start here
     SvidCmdStart = 16,
 }
