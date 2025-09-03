@@ -100,16 +100,16 @@ impl TryFrom<AdoRaw> for Ado {
     fn try_from(raw: AdoRaw) -> Result<Self, Self::Error> {
         match raw.alert_type() {
             // Standard alert types
-            0x01 => Ok(Ado::BatteryStatusChange(BatteryStatusChange(BatteryStatusChangeRaw(
+            0x02 => Ok(Ado::BatteryStatusChange(BatteryStatusChange(BatteryStatusChangeRaw(
                 raw.battery_status_change(),
             )))),
-            0x02 => Ok(Ado::Ocp),
-            0x03 => Ok(Ado::Otp),
-            0x04 => Ok(Ado::OperatingConditionChange),
-            0x05 => Ok(Ado::SourceInputChange),
-            0x06 => Ok(Ado::Ovp),
+            0x04 => Ok(Ado::Ocp),
+            0x08 => Ok(Ado::Otp),
+            0x10 => Ok(Ado::OperatingConditionChange),
+            0x20 => Ok(Ado::SourceInputChange),
+            0x40 => Ok(Ado::Ovp),
             // Extended alert types
-            0x07 => match raw.extended_alert_type() {
+            0x80 => match raw.extended_alert_type() {
                 0x01 => Ok(Ado::PowerStateChange),
                 0x02 => Ok(Ado::PowerButtonPress),
                 0x03 => Ok(Ado::PowerButtonRelease),
