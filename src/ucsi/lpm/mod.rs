@@ -7,6 +7,7 @@ use bitfield::bitfield;
 use crate::ucsi::{cci, CommandHeader, CommandType};
 use crate::{GlobalPortId, LocalPortId, PortId};
 
+pub mod get_alternate_modes;
 pub mod get_connector_capability;
 pub mod get_connector_status;
 
@@ -25,6 +26,7 @@ pub enum CommandData {
     ConnectorReset(ResetType),
     GetConnectorStatus,
     GetConnectorCapability,
+    GetAlternateModes(get_alternate_modes::Args),
 }
 
 impl CommandData {
@@ -34,6 +36,7 @@ impl CommandData {
             CommandData::ConnectorReset(_) => CommandType::ConnectorReset,
             CommandData::GetConnectorStatus => CommandType::GetConnectorStatus,
             CommandData::GetConnectorCapability => CommandType::GetConnectorCapability,
+            CommandData::GetAlternateModes(_) => CommandType::GetAlternateModes,
         }
     }
 }
@@ -67,6 +70,11 @@ impl<T: PortId> Encode for Command<T> {
                 raw_port.encode(encoder)?;
                 get_connector_capability::Args.encode(encoder)
             }
+            CommandData::GetAlternateModes(args) => {
+                // This command has a different format without a leading port number
+                // TODO: Figure out if this can stay an exception or if each command is responsible for pulling its port number.
+                args.encode(encoder)
+            }
             _ => Err(EncodeError::Other("Unsupported command")),
         }
     }
@@ -91,6 +99,14 @@ impl<T: PortId> Decode<CommandHeader> for Command<T> {
                 Ok(Command {
                     port: From::from(connector_number),
                     operation: CommandData::GetConnectorCapability,
+                })
+            }
+            CommandType::GetAlternateModes => {
+                // This command has a different format without a leading port number
+                let args = get_alternate_modes::Args::decode(decoder)?;
+                Ok(Command {
+                    port: From::from(args.connector_number()),
+                    operation: CommandData::GetAlternateModes(args),
                 })
             }
             command_type => Err(DecodeError::UnexpectedVariant {
@@ -118,6 +134,7 @@ pub type LocalCommand = Command<LocalPortId>;
 pub enum ResponseData {
     GetConnectorStatus(get_connector_status::ResponseData),
     GetConnectorCapability(get_connector_capability::ResponseData),
+    GetAlternateModes(get_alternate_modes::ResponseData),
 }
 
 impl Encode for ResponseData {
@@ -125,6 +142,7 @@ impl Encode for ResponseData {
         match self {
             ResponseData::GetConnectorStatus(data) => data.encode(encoder),
             ResponseData::GetConnectorCapability(data) => data.encode(encoder),
+            ResponseData::GetAlternateModes(data) => data.encode(encoder),
         }
     }
 }
@@ -137,6 +155,9 @@ impl Decode<CommandType> for ResponseData {
             )),
             CommandType::GetConnectorCapability => Ok(ResponseData::GetConnectorCapability(
                 get_connector_capability::ResponseData::decode(decoder)?,
+            )),
+            CommandType::GetAlternateModes => Ok(ResponseData::GetAlternateModes(
+                get_alternate_modes::ResponseData::decode(decoder)?,
             )),
             command_type => Err(DecodeError::UnexpectedVariant {
                 type_name: "CommandType",
@@ -185,6 +206,50 @@ impl Decode<CommandHeader> for ConnectorNumberRaw {
     }
 }
 
+/// Common recipient type used by multiple commands
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum Recipient {
+    /// Connector
+    Connector,
+    /// SOP
+    Sop,
+    /// SOP'
+    SopP,
+    /// SOP''
+    SopPp,
+}
+
+/// Invalid recipient error, contains the invalid recipient value
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct InvalidRecipient(pub u8);
+
+impl TryFrom<u8> for Recipient {
+    type Error = InvalidRecipient;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x0 => Ok(Recipient::Connector),
+            0x1 => Ok(Recipient::Sop),
+            0x2 => Ok(Recipient::SopP),
+            0x3 => Ok(Recipient::SopPp),
+            v => Err(InvalidRecipient(v)),
+        }
+    }
+}
+
+impl From<Recipient> for u8 {
+    fn from(value: Recipient) -> Self {
+        match value {
+            Recipient::Connector => 0x0,
+            Recipient::Sop => 0x1,
+            Recipient::SopP => 0x2,
+            Recipient::SopPp => 0x3,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use bincode::config::standard;
@@ -225,6 +290,26 @@ mod tests {
             GlobalCommand {
                 port: GlobalPortId(1),
                 operation: CommandData::GetConnectorCapability,
+            }
+        );
+    }
+
+    #[test]
+    fn test_decode_get_alternate_modes() {
+        let mut bytes = [0u8; COMMAND_LEN];
+        bytes[0] = CommandType::GetAlternateModes as u8;
+        bytes[2] = 0x1; // SOP recipient
+
+        let (get_alternate_modes, consumed): (GlobalCommand, usize) =
+            decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
+        assert_eq!(consumed, bytes.len());
+        assert_eq!(
+            get_alternate_modes,
+            GlobalCommand {
+                port: GlobalPortId(0),
+                operation: CommandData::GetAlternateModes(
+                    *get_alternate_modes::Args::default().set_recipient(Recipient::Sop)
+                ),
             }
         );
     }

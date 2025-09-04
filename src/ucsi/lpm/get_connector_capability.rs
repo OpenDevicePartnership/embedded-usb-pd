@@ -9,7 +9,7 @@ use bitfield::bitfield;
 use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
 
 /// Data length for the GET_CONNECTOR_CAPABILITY command response
-pub const RESPONSE_DATA_LEN: usize = 4;
+pub const RESPONSE_DATA_LEN: usize = 2;
 /// Command padding, -1 for the connector number byte
 pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() - 1;
 
@@ -453,12 +453,7 @@ mod test {
         // Byte 1
         // Bits 8-13 all set
         // Extended operation mode usb4_gen2 + epr_source
-        // Byte 2
-        // Both misc capabilities set
-        // Byte 3
-        // Reverse current protection
-        // Partner PD revision 1
-        let bytes = [0xA1, 0xFF, 0xC0, 0x0C];
+        let bytes: [u8; RESPONSE_DATA_LEN] = [0xA1, 0xFF];
 
         let expected = *ResponseData::default()
             .set_operation_mode(
@@ -477,10 +472,7 @@ mod test {
                 *ExtendedOperationModeFlags::default()
                     .set_usb4_gen2(true)
                     .set_epr_source(true),
-            )
-            .set_misc_capabilities(*MiscCapabilities::default().set_fw_update(true).set_security(true))
-            .set_reverse_current_protection(true)
-            .set_partner_pd_revision(1);
+            );
 
         let (response_data, consumed): (ResponseData, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
