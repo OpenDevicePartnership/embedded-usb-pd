@@ -10,8 +10,11 @@ use crate::{GlobalPortId, LocalPortId, PortId};
 pub mod get_connector_capability;
 pub mod get_connector_status;
 pub mod get_error_status;
+pub mod set_ccom;
 pub mod set_new_cam;
+pub mod set_pdr;
 pub mod set_power_level;
+pub mod set_uor;
 
 /// Connector reset types
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -31,6 +34,9 @@ pub enum CommandData {
     SetPowerLevel(set_power_level::Args),
     SetNewCam(set_new_cam::Args),
     GetErrorStatus,
+    SetCcom(set_ccom::Args),
+    SetUor(set_uor::Args),
+    SetPdr(set_pdr::Args),
 }
 
 impl CommandData {
@@ -43,6 +49,9 @@ impl CommandData {
             CommandData::SetPowerLevel(_) => CommandType::SetPowerLevel,
             CommandData::SetNewCam(_) => CommandType::SetNewCam,
             CommandData::GetErrorStatus => CommandType::GetErrorStatus,
+            CommandData::SetCcom(_) => CommandType::SetCcom,
+            CommandData::SetUor(_) => CommandType::SetUor,
+            CommandData::SetPdr(_) => CommandType::SetPdr,
         }
     }
 }
@@ -88,6 +97,18 @@ impl<T: PortId> Encode for Command<T> {
                 let raw_port: u8 = self.port.into();
                 raw_port.encode(encoder)?;
                 get_error_status::Args.encode(encoder)
+            }
+            CommandData::SetCcom(args) => {
+                // The connector number for this command is combined with its arguments, let it handle everything
+                args.encode(encoder)
+            }
+            CommandData::SetUor(args) => {
+                // The connector number for this command is combined with its arguments, let it handle everything
+                args.encode(encoder)
+            }
+            CommandData::SetPdr(args) => {
+                // The connector number for this command is combined with its arguments, let it handle everything
+                args.encode(encoder)
             }
             _ => Err(EncodeError::Other("Unsupported command")),
         }
@@ -138,6 +159,30 @@ impl<T: PortId> Decode<CommandHeader> for Command<T> {
                 Ok(Command {
                     port: From::from(connector_number),
                     operation: CommandData::GetErrorStatus,
+                })
+            }
+            CommandType::SetCcom => {
+                // The connector number is combined with arguments, let it handle everything
+                let args = set_ccom::Args::decode(decoder)?;
+                Ok(Command {
+                    port: From::from(args.connector_number()),
+                    operation: CommandData::SetCcom(args),
+                })
+            }
+            CommandType::SetUor => {
+                // The connector number is combined with arguments, let it handle everything
+                let args = set_uor::Args::decode(decoder)?;
+                Ok(Command {
+                    port: From::from(args.connector_number()),
+                    operation: CommandData::SetUor(args),
+                })
+            }
+            CommandType::SetPdr => {
+                // The connector number is combined with arguments, let it handle everything
+                let args = set_pdr::Args::decode(decoder)?;
+                Ok(Command {
+                    port: From::from(args.connector_number()),
+                    operation: CommandData::SetPdr(args),
                 })
             }
             command_type => Err(DecodeError::UnexpectedVariant {
@@ -304,6 +349,23 @@ mod tests {
         );
     }
 
+    fn test_decode_set_ccom() {
+        let mut bytes = [0u8; COMMAND_LEN];
+        bytes[0] = CommandType::SetCcom as u8;
+        bytes[2] = 0x81;
+
+        let (set_ccom, consumed): (GlobalCommand, usize) =
+            decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
+        assert_eq!(consumed, bytes.len());
+        assert_eq!(
+            set_ccom,
+            GlobalCommand {
+                port: GlobalPortId(1),
+                operation: CommandData::SetCcom(*set_ccom::Args::default().set_connector_number(1).set_rp(true)),
+            }
+        );
+    }
+
     #[test]
     fn test_decode_set_new_cam() {
         let mut bytes = [0u8; COMMAND_LEN];
@@ -327,6 +389,23 @@ mod tests {
         );
     }
 
+    fn test_decode_set_uor() {
+        let mut bytes = [0u8; COMMAND_LEN];
+        bytes[0] = CommandType::SetUor as u8;
+        bytes[2] = 0x81;
+
+        let (set_uor, consumed): (GlobalCommand, usize) =
+            decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
+        assert_eq!(consumed, bytes.len());
+        assert_eq!(
+            set_uor,
+            GlobalCommand {
+                port: GlobalPortId(1),
+                operation: CommandData::SetUor(*set_uor::Args::default().set_connector_number(1).set_dfp(true)),
+            }
+        );
+    }
+
     #[test]
     fn test_decode_get_error_status() {
         let mut bytes = [0u8; COMMAND_LEN];
@@ -341,6 +420,23 @@ mod tests {
             GlobalCommand {
                 port: GlobalPortId(1),
                 operation: CommandData::GetErrorStatus,
+            }
+        );
+    }
+
+    fn test_decode_set_pdr() {
+        let mut bytes = [0u8; COMMAND_LEN];
+        bytes[0] = CommandType::SetPdr as u8;
+        bytes[2] = 0x81;
+
+        let (set_pdr, consumed): (GlobalCommand, usize) =
+            decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
+        assert_eq!(consumed, bytes.len());
+        assert_eq!(
+            set_pdr,
+            GlobalCommand {
+                port: GlobalPortId(1),
+                operation: CommandData::SetPdr(*set_pdr::Args::default().set_connector_number(1).set_swap_source(true)),
             }
         );
     }
