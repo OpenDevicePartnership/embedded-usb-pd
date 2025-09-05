@@ -1,29 +1,37 @@
 stateDiagram-v2
-    [*] --> Idle(false)
-    Idle(false) --> Idle(true): NotificationEnabled
-    Idle(false) --> Busy(false): BusyChanged
-    Idle(false) --> Idle(false): CommandImmediate
-    Idle(false) --> Idle(false): CommandAsync
-    Busy(false) --> Idle(false): BusyChanged
-    Busy(false) --> Busy(false): CommandImmediate
-    Busy(false) --> Busy(false): CommandAsync
-    Idle(true) --> Busy(true): BusyChanged
-    Idle(true) --> WaitForAsyncEventAck: PendingAsyncEvent [OpmNotifyAsyncEvent]
-    Idle(true) --> WaitForCommandCompleteAck: CommandImmediate [OpmNotifyCommandComplete]
-    Idle(true) --> ProcessingCommand: CommandAsync [OpmNotifyBusy]
-    Busy(true) --> Idle(true): BusyChanged
-    Busy(true) --> Busy(true): CommandImmediate [OpmNotifyBusy]
-    Busy(true) --> Busy(true): CommandAsync [OpmNotifyBusy]
-    ProcessingCommand --> WaitForCommandCompleteAck: CommandCompleted [OpmNotifyCommandComplete]
+    [*] --> Idle_false
+    Idle_false: Idle(false)
+    Idle_true: Idle(true)
+    Busy_false: Busy(false)
+    Busy_true: Busy(true)
+    ProcessingCommand: ProcessingCommand
+    WaitForCommandCompleteAck: WaitForCommandCompleteAck
+    WaitForAsyncEventAck: WaitForAsyncEventAck
+
+    Idle_false --> ProcessingCommand: SetNotificationEnable [ExecuteCommand]
+    Idle_false --> Busy_false: BusyChanged
+    Idle_false --> Idle_false: PpmReset [ResetComplete]
+
+    Busy_false --> Idle_false: BusyChanged
+    Busy_false --> Busy_false: CommandComplete
+    Busy_false --> Idle_false: PpmReset [ResetComplete]
+
+    Idle_true --> Busy_true: BusyChanged
+    Idle_true --> WaitForAsyncEventAck: PendingAsyncEvent [OpmNotifyAsyncEvent]
+    Idle_true --> ProcessingCommand: Command [ExecuteCommand]
+    Idle_true --> Idle_false: PpmReset [ResetComplete]
+
+    Busy_true --> Idle_true: BusyChanged
+    Busy_true --> Busy_true: CommandComplete [OpmNotifyBusy]
+    Busy_true --> Busy_true: CommandComplete
+    Busy_true --> Idle_false: PpmReset [ResetComplete]
+
+    ProcessingCommand --> WaitForCommandCompleteAck: CommandComplete [OpmNotifyCommandComplete]
     ProcessingCommand --> WaitForCommandCompleteAck: Cancel [OpmNotifyCommandComplete]
-    WaitForCommandCompleteAck --> Idle(true): CommandCompleteAck
-    WaitForAsyncEventAck --> Idle(true): AsyncEventAck
-    WaitForAsyncEventAck --> WaitForCommandCompleteAck: CommandImmediate [OpmNotifyCommandComplete]
-    WaitForAsyncEventAck --> ProcessingCommand: CommandAsync [OpmNotifyBusy]
-    Idle(false) --> Idle(false): Reset [OpmNotifyReset]
-    Busy(false) --> Idle(false): Reset [OpmNotifyReset]
-    Idle(true) --> Idle(false): Reset [OpmNotifyReset]
-    Busy(true) --> Idle(false): Reset [OpmNotifyReset]
-    ProcessingCommand --> Idle(false): Reset [OpmNotifyReset]
-    WaitForCommandCompleteAck --> Idle(false): Reset [OpmNotifyReset]
-    WaitForAsyncEventAck --> Idle(false): Reset [OpmNotifyReset]
+    ProcessingCommand --> Idle_false: PpmReset [ResetComplete]
+
+    WaitForCommandCompleteAck --> Idle_true: AckCcCi [OpmNotifyAckComplete]
+    WaitForCommandCompleteAck --> Idle_false: PpmReset [ResetComplete]
+
+    WaitForAsyncEventAck --> Idle_true: AckCcCi
+    WaitForAsyncEventAck --> Idle_false: PpmReset [ResetComplete]

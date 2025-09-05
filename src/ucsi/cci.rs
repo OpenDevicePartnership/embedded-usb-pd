@@ -1,6 +1,6 @@
 use bitfield::bitfield;
 
-use crate::PortId;
+use crate::{GlobalPortId, LocalPortId, PortId};
 
 bitfield! {
     /// Command status and connect change indicator, see UCSI spec 4.2
@@ -236,3 +236,6 @@ impl<T: PortId> Default for Cci<T> {
         Cci::from(CciRaw(0))
     }
 }
+
+pub type GlobalCci = Cci<GlobalPortId>;
+pub type LocalCci = Cci<LocalPortId>;

@@ -177,8 +177,8 @@ impl<Context, T: PortId> Decode<Context> for Command<T> {
 #[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ResponseData {
-    PpmResponse(ppm::ResponseData),
-    LpmResponse(lpm::ResponseData),
+    Ppm(ppm::ResponseData),
+    Lpm(lpm::ResponseData),
 }
 
 impl ResponseData {
@@ -191,8 +191,8 @@ impl ResponseData {
 impl Encode for ResponseData {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         match self {
-            ResponseData::PpmResponse(resp) => resp.encode(encoder),
-            ResponseData::LpmResponse(resp) => resp.encode(encoder),
+            ResponseData::Ppm(resp) => resp.encode(encoder),
+            ResponseData::Lpm(resp) => resp.encode(encoder),
         }
     }
 }
@@ -217,7 +217,7 @@ impl<T: PortId> From<ppm::Response<T>> for Response<T> {
     fn from(response: ppm::Response<T>) -> Self {
         Self {
             cci: response.cci,
-            data: response.data.map(ResponseData::PpmResponse),
+            data: response.data.map(ResponseData::Ppm),
         }
     }
 }
@@ -226,7 +226,7 @@ impl<T: PortId> From<lpm::Response<T>> for Response<T> {
     fn from(response: lpm::Response<T>) -> Self {
         Self {
             cci: response.cci,
-            data: response.data.map(ResponseData::LpmResponse),
+            data: response.data.map(ResponseData::Lpm),
         }
     }
 }
@@ -399,7 +399,7 @@ mod tests {
     #[test]
     fn test_ppm_response_encoding() {
         let (response_data, bytes) = ppm::get_capability::test::create_response_data();
-        let expected = ResponseData::PpmResponse(ppm::ResponseData::GetCapability(response_data));
+        let expected = ResponseData::Ppm(ppm::ResponseData::GetCapability(response_data));
 
         let mut encoded_bytes = [0u8; ppm::get_capability::RESPONSE_DATA_LEN];
         let len = expected.encode_into_slice(&mut encoded_bytes).unwrap();
@@ -414,7 +414,7 @@ mod tests {
     #[test]
     fn test_lpm_response_encoding() {
         let (response_data, bytes) = lpm::get_connector_status::test::create_response_data();
-        let expected = ResponseData::LpmResponse(lpm::ResponseData::GetConnectorStatus(response_data));
+        let expected = ResponseData::Lpm(lpm::ResponseData::GetConnectorStatus(response_data));
 
         let mut encoded_bytes = [0u8; lpm::get_connector_status::RESPONSE_DATA_LEN];
         let len = expected.encode_into_slice(&mut encoded_bytes).unwrap();
