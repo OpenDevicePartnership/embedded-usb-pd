@@ -9,7 +9,7 @@ use bitfield::bitfield;
 use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
 
 /// Data length for the GET_CONNECTOR_CAPABILITY command response
-pub const RESPONSE_DATA_LEN: usize = 4;
+pub const RESPONSE_DATA_LEN: usize = 2;
 /// Command padding, -1 for the connector number byte
 pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() - 1;
 
@@ -127,146 +127,10 @@ impl From<OperationModeFlags> for u8 {
 }
 
 bitfield! {
-    /// Extended operation mode raw flags
-    #[derive(Copy, Default, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-    pub struct ExtendedOperationModeFlagsRaw(u8);
-    impl Debug;
-    pub bool, usb4_gen2, set_usb4_gen2: 0;
-    pub bool, epr_source, set_epr_source: 1;
-    pub bool, epr_sink, set_epr_sink: 2;
-    pub bool, usb4_gen3, set_usb4_gen3: 3;
-    pub bool, usb4_gen4, set_usb4_gen4: 4;
-}
-
-/// Extended operation mode flags
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct ExtendedOperationModeFlags(ExtendedOperationModeFlagsRaw);
-
-impl ExtendedOperationModeFlags {
-    pub fn usb4_gen2(&self) -> bool {
-        self.0.usb4_gen2()
-    }
-
-    pub fn set_usb4_gen2(&mut self, value: bool) -> &mut Self {
-        self.0.set_usb4_gen2(value);
-        self
-    }
-
-    pub fn epr_source(&self) -> bool {
-        self.0.epr_source()
-    }
-
-    pub fn set_epr_source(&mut self, value: bool) -> &mut Self {
-        self.0.set_epr_source(value);
-        self
-    }
-
-    pub fn epr_sink(&self) -> bool {
-        self.0.epr_sink()
-    }
-
-    pub fn set_epr_sink(&mut self, value: bool) -> &mut Self {
-        self.0.set_epr_sink(value);
-        self
-    }
-
-    pub fn usb4_gen3(&self) -> bool {
-        self.0.usb4_gen3()
-    }
-
-    pub fn set_usb4_gen3(&mut self, value: bool) -> &mut Self {
-        self.0.set_usb4_gen3(value);
-        self
-    }
-
-    pub fn usb4_gen4(&self) -> bool {
-        self.0.usb4_gen4()
-    }
-
-    pub fn set_usb4_gen4(&mut self, value: bool) -> &mut Self {
-        self.0.set_usb4_gen4(value);
-        self
-    }
-}
-
-impl Default for ExtendedOperationModeFlags {
-    fn default() -> Self {
-        Self(ExtendedOperationModeFlagsRaw(0))
-    }
-}
-
-impl From<u8> for ExtendedOperationModeFlags {
-    fn from(raw: u8) -> Self {
-        ExtendedOperationModeFlags(ExtendedOperationModeFlagsRaw(raw))
-    }
-}
-
-impl From<ExtendedOperationModeFlags> for u8 {
-    fn from(raw: ExtendedOperationModeFlags) -> Self {
-        raw.0 .0
-    }
-}
-
-bitfield! {
-    /// Miscellaneous capabilities raw flags
-    #[derive(Copy, Default, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-    pub struct MiscCapabilitiesRaw(u8);
-    impl Debug;
-    pub bool, fw_update, set_fw_update: 0;
-    pub bool, security, set_security: 1;
-}
-
-/// Miscellaneous capabilities
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct MiscCapabilities(MiscCapabilitiesRaw);
-
-impl MiscCapabilities {
-    pub fn fw_update(&self) -> bool {
-        self.0.fw_update()
-    }
-
-    pub fn set_fw_update(&mut self, value: bool) -> &mut Self {
-        self.0.set_fw_update(value);
-        self
-    }
-
-    pub fn security(&self) -> bool {
-        self.0.security()
-    }
-
-    pub fn set_security(&mut self, value: bool) -> &mut Self {
-        self.0.set_security(value);
-        self
-    }
-}
-
-impl Default for MiscCapabilities {
-    fn default() -> Self {
-        Self(MiscCapabilitiesRaw(0))
-    }
-}
-
-impl From<u8> for MiscCapabilities {
-    fn from(raw: u8) -> Self {
-        Self(MiscCapabilitiesRaw(raw))
-    }
-}
-
-impl From<MiscCapabilities> for u8 {
-    fn from(raw: MiscCapabilities) -> Self {
-        raw.0 .0
-    }
-}
-
-bitfield! {
     /// Raw GET_CONNECTOR_CAPABILITY response bitfield
     #[derive(Copy, Clone, Default, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-    pub struct ResponseDataRaw(u32);
+    pub struct ResponseDataRaw(u16);
     impl Debug;
 
     pub u8, operation_mode, set_operation_mode: 7, 0;
@@ -276,10 +140,6 @@ bitfield! {
     pub bool, swap_to_ufp, set_swap_to_ufp: 11;
     pub bool, swap_to_src, set_swap_to_src: 12;
     pub bool, swap_to_snk, set_swap_to_snk: 13;
-    pub u8, extended_operation_mode, set_extended_operation_mode: 21, 14;
-    pub u8, misc_capabilities, set_misc_capabilities: 25, 22;
-    pub bool, reverse_current_protection, set_reverse_current_protection: 26;
-    pub u8, partner_pd_revision, set_partner_pd_revision: 28, 27;
 }
 
 /// Response data
@@ -349,42 +209,6 @@ impl ResponseData {
         self.0.set_swap_to_snk(value);
         self
     }
-
-    pub fn extended_operation_mode(&self) -> ExtendedOperationModeFlags {
-        ExtendedOperationModeFlags::from(self.0.extended_operation_mode())
-    }
-
-    pub fn set_extended_operation_mode(&mut self, value: ExtendedOperationModeFlags) -> &mut Self {
-        self.0.set_extended_operation_mode(u8::from(value));
-        self
-    }
-
-    pub fn misc_capabilities(&self) -> MiscCapabilities {
-        MiscCapabilities::from(self.0.misc_capabilities())
-    }
-
-    pub fn set_misc_capabilities(&mut self, value: MiscCapabilities) -> &mut Self {
-        self.0.set_misc_capabilities(u8::from(value));
-        self
-    }
-
-    pub fn reverse_current_protection(&self) -> bool {
-        self.0.reverse_current_protection()
-    }
-
-    pub fn set_reverse_current_protection(&mut self, value: bool) -> &mut Self {
-        self.0.set_reverse_current_protection(value);
-        self
-    }
-
-    pub fn partner_pd_revision(&self) -> u8 {
-        self.0.partner_pd_revision()
-    }
-
-    pub fn set_partner_pd_revision(&mut self, value: u8) -> &mut Self {
-        self.0.set_partner_pd_revision(value);
-        self
-    }
 }
 
 impl Default for ResponseData {
@@ -393,13 +217,13 @@ impl Default for ResponseData {
     }
 }
 
-impl From<u32> for ResponseData {
-    fn from(raw: u32) -> Self {
+impl From<u16> for ResponseData {
+    fn from(raw: u16) -> Self {
         Self(ResponseDataRaw(raw))
     }
 }
 
-impl From<ResponseData> for u32 {
+impl From<ResponseData> for u16 {
     fn from(data: ResponseData) -> Self {
         data.0 .0
     }
@@ -407,15 +231,13 @@ impl From<ResponseData> for u32 {
 
 impl Encode for ResponseData {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
-        // TODO: fixup when we support different UCSI versions
-        (u32::from(*self) as u16).encode(encoder)
+        self.0 .0.encode(encoder)
     }
 }
 
 impl<Context> Decode<Context> for ResponseData {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        // TODO: fixup when we support different UCSI versions
-        Ok(ResponseData::from(u16::decode(decoder)? as u32))
+        Ok(ResponseData::from(u16::decode(decoder)?))
     }
 }
 
@@ -452,13 +274,7 @@ mod test {
         // Operation mode - Rp only + USB2 + Alt mode
         // Byte 1
         // Bits 8-13 all set
-        // Extended operation mode usb4_gen2 + epr_source
-        // Byte 2
-        // Both misc capabilities set
-        // Byte 3
-        // Reverse current protection
-        // Partner PD revision 1
-        let bytes = [0xA1, 0xFF, 0xC0, 0x0C];
+        let bytes: [u8; RESPONSE_DATA_LEN] = [0xA1, 0x3F];
 
         let expected = *ResponseData::default()
             .set_operation_mode(
@@ -472,15 +288,7 @@ mod test {
             .set_swap_to_dfp(true)
             .set_swap_to_ufp(true)
             .set_swap_to_src(true)
-            .set_swap_to_snk(true)
-            .set_extended_operation_mode(
-                *ExtendedOperationModeFlags::default()
-                    .set_usb4_gen2(true)
-                    .set_epr_source(true),
-            )
-            .set_misc_capabilities(*MiscCapabilities::default().set_fw_update(true).set_security(true))
-            .set_reverse_current_protection(true)
-            .set_partner_pd_revision(1);
+            .set_swap_to_snk(true);
 
         let (response_data, consumed): (ResponseData, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();

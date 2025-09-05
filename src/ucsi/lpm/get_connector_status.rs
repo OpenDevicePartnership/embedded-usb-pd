@@ -5,12 +5,11 @@ use bincode::enc::{Encode, Encoder};
 use bincode::error::{AllowedEnumVariants, DecodeError, EncodeError};
 use bitfield::bitfield;
 
-use crate::pdo::{MA5_UNIT, MV5_UNIT};
 use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
-use crate::{PlugOrientation, PowerRole};
+use crate::PowerRole;
 
 /// Data length for the GET_CONNECTOR_STATUS command response
-pub const RESPONSE_DATA_LEN: usize = 19;
+pub const RESPONSE_DATA_LEN: usize = 11;
 /// Command padding, -1 for the connector number byte
 pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() - 1;
 
@@ -260,10 +259,6 @@ bitfield! {
     pub bool, usb, set_usb: 0;
     /// Alternate mode
     pub bool, alt_mode, set_alt_mode: 1;
-    /// USB4 Gen3
-    pub bool, usb4_gen3, set_usb4_gen3: 2;
-    /// USB4 Gen4
-    pub bool, usb4_gen4, set_usb4_gen4: 3;
 }
 
 /// Connector partner flags
@@ -290,26 +285,6 @@ impl ConnectorPartnerFlags {
     /// Set alternate mode flag
     pub fn set_alt_mode(&mut self, value: bool) {
         self.0.set_alt_mode(value);
-    }
-
-    /// Get USB4 Gen3 flag
-    pub fn usb4_gen3(&self) -> bool {
-        self.0.usb4_gen3()
-    }
-
-    /// Set USB4 Gen3 flag
-    pub fn set_usb4_gen3(&mut self, value: bool) {
-        self.0.set_usb4_gen3(value);
-    }
-
-    /// Get USB4 Gen4 flag
-    pub fn usb4_gen4(&self) -> bool {
-        self.0.usb4_gen4()
-    }
-
-    /// Set USB4 Gen4 flag
-    pub fn set_usb4_gen4(&mut self, value: bool) {
-        self.0.set_usb4_gen4(value);
     }
 }
 
@@ -505,24 +480,6 @@ bitfield! {
     pub u8, provider_caps_limited, set_provider_caps_limited: 69, 66;
     // bcdPDVersion Operation Mode
     pub u16, bcd_pd_version, set_bcd_pd_version: 85, 70;
-    // Orientation
-    pub bool, orientation, set_orientation: 86;
-    // Sink Path Status
-    pub bool, sink_path_status, set_sink_path_status: 87;
-    // Reverse Current Protection Status
-    pub bool, reverse_current_protection_status, set_reverse_current_protection_status: 88;
-    // Power Reading Ready
-    pub bool, power_reading_ready, set_power_reading_ready: 89;
-    // Current Scale
-    pub u8, current_scale, set_current_scale: 92, 90;
-    // Peak Current
-    pub u16, peak_current, set_peak_current: 108, 93;
-    // Average Current
-    pub u16, avg_current, set_avg_current: 124, 109;
-    // Voltage Scale
-    pub u8, voltage_scale, set_voltage_scale: 128, 125;
-    // Voltage Reading
-    pub u16, voltage_reading, set_voltage_reading: 144, 129;
 }
 
 /// All fields that are only valid when connect_status is true
@@ -547,26 +504,6 @@ pub struct ConnectedStatus {
     pub provider_caps_limited: Option<ProviderCapsLimitedReason>,
     /// BCD PD version, only valid when operating in PD mode
     pub bcd_pd_version: Option<u16>,
-    /// Orientation
-    pub orientation: PlugOrientation,
-    /// Sink path status
-    pub sink_path_status: bool,
-}
-
-/// Power reading result
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct PowerReading {
-    /// Current scale
-    pub scale_ma: u16,
-    /// Peak current
-    pub peak_current_ma: u16,
-    /// Average current
-    pub avg_current_ma: u16,
-    /// Voltage scale
-    pub scale_mv: u16,
-    /// Voltage reading
-    pub voltage_reading_mv: u16,
 }
 
 /// Main GET_CONNECTOR_STATUS response data structure
@@ -579,10 +516,6 @@ pub struct ResponseData {
     pub connect_status: bool,
     /// Status only valid when connected
     pub status: Option<ConnectedStatus>,
-    /// Debug info, LPM will set this if this feature is supported
-    pub reverse_current_protection_status: bool,
-    /// Power reading
-    pub power_reading: Option<PowerReading>,
 }
 
 pub enum InvalidResponseData {
@@ -653,14 +586,6 @@ impl TryFrom<[u8; RESPONSE_DATA_LEN]> for ResponseData {
                 None
             };
 
-            let orientation = if raw.orientation() {
-                PlugOrientation::CC2
-            } else {
-                PlugOrientation::CC1
-            };
-
-            let sink_path_status = raw.sink_path_status();
-
             Some(ConnectedStatus {
                 power_op_mode,
                 power_direction,
@@ -670,26 +595,6 @@ impl TryFrom<[u8; RESPONSE_DATA_LEN]> for ResponseData {
                 battery_charging_status,
                 provider_caps_limited,
                 bcd_pd_version,
-                orientation,
-                sink_path_status,
-            })
-        } else {
-            None
-        };
-
-        let reverse_current_protection_status = raw.reverse_current_protection_status();
-
-        // Get power reading if available
-        let power_reading = if raw.power_reading_ready() {
-            let current_scale = raw.current_scale() as u16 * MA5_UNIT;
-            let voltage_scale = raw.voltage_scale() as u16 * MV5_UNIT;
-
-            Some(PowerReading {
-                scale_ma: current_scale,
-                peak_current_ma: raw.peak_current() * current_scale,
-                avg_current_ma: raw.avg_current() * current_scale,
-                scale_mv: voltage_scale,
-                voltage_reading_mv: raw.voltage_reading() * voltage_scale,
             })
         } else {
             None
@@ -699,8 +604,6 @@ impl TryFrom<[u8; RESPONSE_DATA_LEN]> for ResponseData {
             status_change,
             connect_status,
             status,
-            reverse_current_protection_status,
-            power_reading,
         })
     }
 }
@@ -733,24 +636,7 @@ impl From<ResponseData> for [u8; RESPONSE_DATA_LEN] {
             if let Some(bcd_pd_version) = status.bcd_pd_version {
                 raw.set_bcd_pd_version(bcd_pd_version);
             }
-
-            raw.set_orientation(status.orientation == PlugOrientation::CC2);
-            raw.set_sink_path_status(status.sink_path_status);
         }
-
-        raw.set_reverse_current_protection_status(data.reverse_current_protection_status);
-
-        if let Some(power_reading) = data.power_reading {
-            raw.set_power_reading_ready(true);
-            raw.set_current_scale((power_reading.scale_ma / MA5_UNIT) as u8);
-            raw.set_peak_current(power_reading.peak_current_ma / power_reading.scale_ma);
-            raw.set_avg_current(power_reading.avg_current_ma / power_reading.scale_ma);
-            raw.set_voltage_scale((power_reading.scale_mv / MV5_UNIT) as u8);
-            raw.set_voltage_reading(power_reading.voltage_reading_mv / power_reading.scale_mv);
-        } else {
-            raw.set_power_reading_ready(false);
-        }
-
         raw.0
     }
 }
@@ -803,22 +689,12 @@ pub mod test {
             status: Some(ConnectedStatus {
                 power_op_mode: PowerOperationMode::Pd,
                 power_direction: PowerRole::Sink,
-                partner_flags: ConnectorPartnerFlags::from(0x8),
+                partner_flags: ConnectorPartnerFlags::from(0),
                 partner_type: ConnectorPartnerType::DfpAttached,
                 rdo: Some(0x78563412),
                 battery_charging_status: Some(BatteryChargingCapabilityStatus::Nominal),
                 provider_caps_limited: Some(ProviderCapsLimitedReason::from(0x01)),
                 bcd_pd_version: Some(0x300),
-                orientation: PlugOrientation::CC2,
-                sink_path_status: true,
-            }),
-            reverse_current_protection_status: true,
-            power_reading: Some(PowerReading {
-                scale_ma: 5,
-                peak_current_ma: 40,
-                avg_current_ma: 5,
-                scale_mv: 5,
-                voltage_reading_mv: 10,
             }),
         };
 
@@ -836,8 +712,8 @@ pub mod test {
         bytes[2] = 0x0b;
 
         // Connector partner flags - 1 byte
-        // USB gen 4 + DFP``
-        bytes[3] = 0x21;
+        // DFP
+        bytes[3] = 0x20;
 
         // RDO - 4 bytes
         // Probably not a valid RDO, but we only have the raw value because an RDO needs
@@ -854,30 +730,6 @@ pub mod test {
         // Bits 2 through 10 of bcdPDVersion - 1 byte
         // PD version 3.00
         bytes[9] = 0xC0;
-
-        // More status flags - 1 byte
-        // Orientation - flipped + sink path status
-        bytes[10] = 0xC0;
-
-        // Power reading flags - 1 byte
-        // Reverse current protection status + power reading ready + current scale = 5 mA + lower 3 bits of peak current
-        bytes[11] = 0x07;
-
-        // Bits 3 through 11 of peak current - 1 byte
-        // Peak current = 8 * 5 mA
-        bytes[12] = 0x01;
-
-        // Upper 5 bits of peak current, lower 3 bits of average current - 1 byte
-        // Average current = 1 * 5 mA
-        bytes[13] = 0x20;
-
-        // Upper 5 bits of average current, lower 3 bits of voltage scale
-        // Voltage scale = 5 mV
-        bytes[15] = 0x20;
-
-        // Upper bit of voltage scale, lower seven bits of voltage reading
-        // 2 * 5 mV
-        bytes[16] = 0x04;
 
         (response_data, bytes)
     }
