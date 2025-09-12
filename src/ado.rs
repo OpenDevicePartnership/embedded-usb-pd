@@ -163,34 +163,40 @@ mod tests {
     fn test_ado_try_from_standard_alerts() {
         let mut raw = AdoRaw(0);
 
-        // Standard alert types
-        raw.set_alert_type(0x01);
-        raw.set_battery_status_change(0b1010_0000);
+        // BatteryStatusChange
+        raw.set_alert_type(0x02);
+        raw.set_battery_status_change(0b0010_0001);
         let ado = Ado::try_from(raw).unwrap();
         match ado {
             Ado::BatteryStatusChange(bsc) => {
                 assert_eq!(bsc.fixed_battery_status_change(1).unwrap(), true);
+                assert_eq!(bsc.hot_swappable_battery_status(0).unwrap(), true);
             }
             _ => panic!("Expected BatteryStatusChange"),
         }
 
-        raw.set_alert_type(0x02);
+        // Ocp
+        raw.set_alert_type(0x04);
         assert_eq!(Ado::try_from(raw).unwrap(), Ado::Ocp);
 
-        raw.set_alert_type(0x03);
+        // Otp
+        raw.set_alert_type(0x08);
         assert_eq!(Ado::try_from(raw).unwrap(), Ado::Otp);
 
-        raw.set_alert_type(0x04);
+        // OperatingConditionChange
+        raw.set_alert_type(0x10);
         assert_eq!(Ado::try_from(raw).unwrap(), Ado::OperatingConditionChange);
 
-        raw.set_alert_type(0x05);
+        // SourceInputChange
+        raw.set_alert_type(0x20);
         assert_eq!(Ado::try_from(raw).unwrap(), Ado::SourceInputChange);
 
-        raw.set_alert_type(0x06);
+        // Ovp
+        raw.set_alert_type(0x40);
         assert_eq!(Ado::try_from(raw).unwrap(), Ado::Ovp);
 
         // Extended alert types
-        raw.set_alert_type(0x07);
+        raw.set_alert_type(0x80);
 
         raw.set_extended_alert_type(0x01);
         assert_eq!(Ado::try_from(raw).unwrap(), Ado::PowerStateChange);
@@ -205,7 +211,7 @@ mod tests {
         assert_eq!(Ado::try_from(raw).unwrap(), Ado::ControllerInitiatedWake);
 
         raw.set_extended_alert_type(0x05);
-        assert_eq!(Ado::try_from(raw), Err(InvalidType(0x7A00005)));
+        assert_eq!(Ado::try_from(raw), Err(InvalidType(raw.0)));
     }
 
     #[test]

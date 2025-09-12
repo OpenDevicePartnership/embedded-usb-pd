@@ -76,8 +76,9 @@ pub struct InvalidTransition<'a, T: PortId> {
     pub input: Input<'a, T>,
 }
 
-#[cfg_attr(doc, aquamarine::aquamarine)]
-/// include_mmd!("docs/ucsi/ppm_state_machine.mmd")
+// Doctest tries to compile the mermaid code as rust so just disable it
+#[cfg_attr(not(doctest), aquamarine::aquamarine)]
+#[cfg_attr(not(doctest), doc = "include_mmd!(\"docs/ucsi/ppm_state_machine.mmd\")")]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct StateMachine<T: PortId> {
