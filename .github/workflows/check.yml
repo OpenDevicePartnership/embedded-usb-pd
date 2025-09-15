@@ -145,8 +145,10 @@ jobs:
           submodules: true
       - name: Install stable
         uses: dtolnay/rust-toolchain@stable
+      - name: cargo install cargo-hack
+        uses: taiki-e/install-action@cargo-hack
       - name: cargo test
-        run: cargo test --locked
+        run: cargo hack --feature-powerset --exclude-features defmt test --all-targets --locked
         # After ensuring tests pass, finally ensure the test code itself contains no clippy warnings
       - name: cargo clippy
         run: |
