@@ -7,29 +7,26 @@ use bitfield::bitfield;
 use crate::ucsi::{cci, CommandHeader, CommandType};
 use crate::{GlobalPortId, LocalPortId, PortId};
 
+pub mod connector_reset;
 pub mod get_alternate_modes;
+pub mod get_cable_property;
+pub mod get_cam_supported;
 pub mod get_connector_capability;
 pub mod get_connector_status;
+pub mod get_current_cam;
 pub mod get_error_status;
+pub mod get_pdos;
 pub mod set_ccom;
 pub mod set_new_cam;
 pub mod set_pdr;
 pub mod set_power_level;
 pub mod set_uor;
 
-/// Connector reset types
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum ResetType {
-    Hard,
-    Data,
-}
-
 /// LPM command data
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum CommandData {
-    ConnectorReset(ResetType),
+    ConnectorReset,
     GetConnectorStatus,
     GetConnectorCapability,
     SetPowerLevel(set_power_level::Args),
@@ -39,13 +36,17 @@ pub enum CommandData {
     SetUor(set_uor::Args),
     SetPdr(set_pdr::Args),
     GetAlternateModes(get_alternate_modes::Args),
+    GetCamSupported,
+    GetCurrentCam,
+    GetPdos(get_pdos::Args),
+    GetCableProperty,
 }
 
 impl CommandData {
     /// Returns the command type for this command
     pub const fn command_type(&self) -> CommandType {
         match self {
-            CommandData::ConnectorReset(_) => CommandType::ConnectorReset,
+            CommandData::ConnectorReset => CommandType::ConnectorReset,
             CommandData::GetConnectorStatus => CommandType::GetConnectorStatus,
             CommandData::GetConnectorCapability => CommandType::GetConnectorCapability,
             CommandData::SetPowerLevel(_) => CommandType::SetPowerLevel,
@@ -55,6 +56,10 @@ impl CommandData {
             CommandData::SetUor(_) => CommandType::SetUor,
             CommandData::SetPdr(_) => CommandType::SetPdr,
             CommandData::GetAlternateModes(_) => CommandType::GetAlternateModes,
+            CommandData::GetCamSupported => CommandType::GetCamSupported,
+            CommandData::GetCurrentCam => CommandType::GetCurrentCam,
+            CommandData::GetPdos(_) => CommandType::GetPdos,
+            CommandData::GetCableProperty => CommandType::GetCableProperty,
         }
     }
 }
@@ -63,8 +68,59 @@ impl CommandData {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Command<T: PortId> {
-    pub port: T,
-    pub operation: CommandData,
+    port: T,
+    operation: CommandData,
+}
+
+impl<T: PortId> Command<T> {
+    pub const fn new(port: T, operation: CommandData) -> Self {
+        Command { port, operation }
+    }
+
+    pub fn port(&self) -> T {
+        self.port
+    }
+
+    pub fn set_port(&mut self, port: T) -> &mut Self {
+        self.port = port;
+        // These commands have the connector number as part of their arguments, update them too
+        // TODO: Figure out how to remove this
+        match self.operation {
+            CommandData::SetPowerLevel(ref mut args) => {
+                args.set_connector_number(self.port.into());
+            }
+            CommandData::SetNewCam(ref mut args) => {
+                args.connector_number = self.port.into();
+            }
+            CommandData::SetCcom(ref mut args) => {
+                args.set_connector_number(self.port.into());
+            }
+            CommandData::SetUor(ref mut args) => {
+                args.set_connector_number(self.port.into());
+            }
+            CommandData::SetPdr(ref mut args) => {
+                args.set_connector_number(self.port.into());
+            }
+            CommandData::GetAlternateModes(ref mut args) => {
+                args.set_connector_number(self.port.into());
+            }
+            CommandData::GetPdos(ref mut args) => {
+                args.set_connector_number(self.port.into());
+            }
+            _ => {}
+        }
+
+        self
+    }
+
+    pub fn operation(&self) -> CommandData {
+        self.operation
+    }
+
+    pub fn set_operation(&mut self, operation: CommandData) -> &mut Self {
+        self.operation = operation;
+        self
+    }
 }
 
 impl<T: PortId> Command<T> {
@@ -77,14 +133,17 @@ impl<T: PortId> Command<T> {
 impl<T: PortId> Encode for Command<T> {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         CommandHeader::new(self.command_type(), 0).encode(encoder)?;
+        let raw_port: u8 = self.port.into();
         match self.operation {
+            CommandData::ConnectorReset => {
+                raw_port.encode(encoder)?;
+                connector_reset::Args.encode(encoder)
+            }
             CommandData::GetConnectorStatus => {
-                let raw_port: u8 = self.port.into();
                 raw_port.encode(encoder)?;
                 get_connector_status::Args.encode(encoder)
             }
             CommandData::GetConnectorCapability => {
-                let raw_port: u8 = self.port.into();
                 raw_port.encode(encoder)?;
                 get_connector_capability::Args.encode(encoder)
             }
@@ -97,7 +156,6 @@ impl<T: PortId> Encode for Command<T> {
                 args.encode(encoder)
             }
             CommandData::GetErrorStatus => {
-                let raw_port: u8 = self.port.into();
                 raw_port.encode(encoder)?;
                 get_error_status::Args.encode(encoder)
             }
@@ -118,7 +176,22 @@ impl<T: PortId> Encode for Command<T> {
                 // TODO: Figure out if this can stay an exception or if each command is responsible for pulling its port number.
                 args.encode(encoder)
             }
-            _ => Err(EncodeError::Other("Unsupported command")),
+            CommandData::GetCamSupported => {
+                raw_port.encode(encoder)?;
+                get_cam_supported::Args.encode(encoder)
+            }
+            CommandData::GetCurrentCam => {
+                raw_port.encode(encoder)?;
+                get_current_cam::Args.encode(encoder)
+            }
+            CommandData::GetPdos(args) => {
+                // The connector number for this command is combined with its arguments, let it handle everything
+                args.encode(encoder)
+            }
+            CommandData::GetCableProperty => {
+                raw_port.encode(encoder)?;
+                get_cable_property::Args.encode(encoder)
+            }
         }
     }
 }
@@ -126,6 +199,15 @@ impl<T: PortId> Encode for Command<T> {
 impl<T: PortId> Decode<CommandHeader> for Command<T> {
     fn decode<D: Decoder<Context = CommandHeader>>(decoder: &mut D) -> Result<Self, DecodeError> {
         match decoder.context().command() {
+            CommandType::ConnectorReset => {
+                let connector_number = ConnectorNumberRaw::decode(decoder)?.connector_number();
+                // Don't actually have any args, but need to consume command padding
+                let _args = connector_reset::Args::decode(decoder)?;
+                Ok(Command {
+                    port: From::from(connector_number),
+                    operation: CommandData::ConnectorReset,
+                })
+            }
             CommandType::GetConnectorStatus => {
                 let connector_number = ConnectorNumberRaw::decode(decoder)?.connector_number();
                 // Don't actually have any args, but need to consume command padding
@@ -201,6 +283,41 @@ impl<T: PortId> Decode<CommandHeader> for Command<T> {
                     operation: CommandData::GetAlternateModes(args),
                 })
             }
+            CommandType::GetCamSupported => {
+                let connector_number = ConnectorNumberRaw::decode(decoder)?.connector_number();
+                // Don't actually have any args, but need to consume command padding
+                let _args = get_cam_supported::Args::decode(decoder)?;
+                Ok(Command {
+                    port: From::from(connector_number),
+                    operation: CommandData::GetCamSupported,
+                })
+            }
+            CommandType::GetCurrentCam => {
+                let connector_number = ConnectorNumberRaw::decode(decoder)?.connector_number();
+                // Don't actually have any args, but need to consume command padding
+                let _args = get_current_cam::Args::decode(decoder)?;
+                Ok(Command {
+                    port: From::from(connector_number),
+                    operation: CommandData::GetCurrentCam,
+                })
+            }
+            CommandType::GetPdos => {
+                // The connector number is combined with arguments, let it handle everything
+                let args = get_pdos::Args::decode(decoder)?;
+                Ok(Command {
+                    port: From::from(args.connector_number()),
+                    operation: CommandData::GetPdos(args),
+                })
+            }
+            CommandType::GetCableProperty => {
+                let connector_number = ConnectorNumberRaw::decode(decoder)?.connector_number();
+                // Don't actually have any args, but need to consume command padding
+                let _args = get_cable_property::Args::decode(decoder)?;
+                Ok(Command {
+                    port: From::from(connector_number),
+                    operation: CommandData::GetCableProperty,
+                })
+            }
             command_type => Err(DecodeError::UnexpectedVariant {
                 type_name: "CommandType",
                 allowed: &AllowedEnumVariants::Allowed(&[CommandType::GetConnectorStatus as u32]),
@@ -224,19 +341,29 @@ pub type LocalCommand = Command<LocalPortId>;
 #[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ResponseData {
+    ConnectorReset,
     GetConnectorStatus(get_connector_status::ResponseData),
     GetConnectorCapability(get_connector_capability::ResponseData),
     GetErrorStatus(get_error_status::ResponseData),
     GetAlternateModes(get_alternate_modes::ResponseData),
+    GetCamSupported(get_cam_supported::ResponseData),
+    GetCurrentCam(get_current_cam::ResponseData),
+    GetPdos(get_pdos::ResponseData),
+    GetCableProperty(get_cable_property::ResponseData),
 }
 
 impl Encode for ResponseData {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         match self {
+            ResponseData::ConnectorReset => Ok(()), // No response data
             ResponseData::GetConnectorStatus(data) => data.encode(encoder),
             ResponseData::GetConnectorCapability(data) => data.encode(encoder),
             ResponseData::GetErrorStatus(data) => data.encode(encoder),
             ResponseData::GetAlternateModes(data) => data.encode(encoder),
+            ResponseData::GetCamSupported(data) => data.encode(encoder),
+            ResponseData::GetCurrentCam(data) => data.encode(encoder),
+            ResponseData::GetPdos(data) => data.encode(encoder),
+            ResponseData::GetCableProperty(data) => data.encode(encoder),
         }
     }
 }
@@ -244,6 +371,7 @@ impl Encode for ResponseData {
 impl Decode<CommandType> for ResponseData {
     fn decode<D: Decoder<Context = CommandType>>(decoder: &mut D) -> Result<Self, DecodeError> {
         match decoder.context() {
+            CommandType::ConnectorReset => Ok(ResponseData::ConnectorReset),
             CommandType::GetConnectorStatus => Ok(ResponseData::GetConnectorStatus(
                 get_connector_status::ResponseData::decode(decoder)?,
             )),
@@ -255,6 +383,16 @@ impl Decode<CommandType> for ResponseData {
             )?)),
             CommandType::GetAlternateModes => Ok(ResponseData::GetAlternateModes(
                 get_alternate_modes::ResponseData::decode(decoder)?,
+            )),
+            CommandType::GetCamSupported => Ok(ResponseData::GetCamSupported(get_cam_supported::ResponseData::decode(
+                decoder,
+            )?)),
+            CommandType::GetCurrentCam => Ok(ResponseData::GetCurrentCam(get_current_cam::ResponseData::decode(
+                decoder,
+            )?)),
+            CommandType::GetPdos => Ok(ResponseData::GetPdos(get_pdos::ResponseData::decode(decoder)?)),
+            CommandType::GetCableProperty => Ok(ResponseData::GetCableProperty(
+                get_cable_property::ResponseData::decode(decoder)?,
             )),
             command_type => Err(DecodeError::UnexpectedVariant {
                 type_name: "CommandType",
@@ -355,6 +493,24 @@ mod tests {
     use super::*;
     use crate::ucsi::COMMAND_LEN;
     use crate::PowerRole;
+
+    #[test]
+    fn test_decode_connector_reset() {
+        let mut bytes = [0u8; COMMAND_LEN];
+        bytes[0] = CommandType::ConnectorReset as u8;
+        bytes[2] = 0x81;
+
+        let (connector_reset, consumed): (GlobalCommand, usize) =
+            decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
+        assert_eq!(consumed, bytes.len());
+        assert_eq!(
+            connector_reset,
+            GlobalCommand {
+                port: GlobalPortId(1),
+                operation: CommandData::ConnectorReset,
+            }
+        );
+    }
 
     #[test]
     fn test_decode_get_connector_status() {
@@ -477,9 +633,7 @@ mod tests {
 
     #[test]
     fn test_decode_set_uor() {
-        let mut bytes = [0u8; COMMAND_LEN];
-        bytes[0] = CommandType::SetUor as u8;
-        bytes[2] = 0x81;
+        let mut bytes = [9, 0, 129, 0, 0, 0, 0, 0];
 
         let (set_uor, consumed): (GlobalCommand, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
@@ -525,6 +679,77 @@ mod tests {
             GlobalCommand {
                 port: GlobalPortId(1),
                 operation: CommandData::SetPdr(*set_pdr::Args::default().set_connector_number(1).set_swap_source(true)),
+            }
+        );
+    }
+
+    #[test]
+    fn test_get_cam_supported() {
+        let mut bytes = [0u8; COMMAND_LEN];
+        bytes[0] = CommandType::GetCamSupported as u8;
+        bytes[2] = 0x1;
+
+        let (get_cam_supported, consumed): (GlobalCommand, usize) =
+            decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
+        assert_eq!(consumed, bytes.len());
+        assert_eq!(
+            get_cam_supported,
+            GlobalCommand {
+                port: GlobalPortId(1),
+                operation: CommandData::GetCamSupported,
+            }
+        );
+    }
+
+    #[test]
+    fn test_get_current_cam() {
+        let mut bytes = [0u8; COMMAND_LEN];
+        bytes[0] = CommandType::GetCurrentCam as u8;
+        bytes[2] = 0x1;
+        let (get_current_cam, consumed): (GlobalCommand, usize) =
+            decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
+        assert_eq!(consumed, bytes.len());
+        assert_eq!(
+            get_current_cam,
+            GlobalCommand {
+                port: GlobalPortId(1),
+                operation: CommandData::GetCurrentCam,
+            }
+        );
+    }
+
+    #[test]
+    fn test_get_pdos() {
+        let mut bytes = [0u8; COMMAND_LEN];
+        bytes[0] = CommandType::GetPdos as u8;
+        bytes[2] = 0x81;
+
+        let (get_pdos, consumed): (GlobalCommand, usize) =
+            decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
+        assert_eq!(consumed, bytes.len());
+        assert_eq!(
+            get_pdos,
+            GlobalCommand {
+                port: GlobalPortId(1),
+                operation: CommandData::GetPdos(*get_pdos::Args::default().set_connector_number(1).set_partner(true)),
+            }
+        );
+    }
+
+    #[test]
+    fn test_get_cable_property() {
+        let mut bytes = [0u8; COMMAND_LEN];
+        bytes[0] = CommandType::GetCableProperty as u8;
+        bytes[2] = 0x1;
+
+        let (get_cable_property, consumed): (GlobalCommand, usize) =
+            decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
+        assert_eq!(consumed, bytes.len());
+        assert_eq!(
+            get_cable_property,
+            GlobalCommand {
+                port: GlobalPortId(1),
+                operation: CommandData::GetCableProperty,
             }
         );
     }

@@ -54,6 +54,29 @@ pub enum CommandType {
     GetLpmPpmInfo,
 }
 
+impl CommandType {
+    /// Returns true if this command has response data
+    pub fn has_response(&self) -> bool {
+        // Written as a negative so this function returns true for command not in this list.
+        // One of the major uses for this function is to determine if there's a response to serialize.
+        // If this function returns true by default then that makes it that a subsequent sealization
+        // attempt will fail due to the lack of corresponding response data types. Otherwise the
+        // serialization will not be attempted and no error will occur.
+        !matches!(
+            self,
+            CommandType::PpmReset
+                | CommandType::Cancel
+                | CommandType::ConnectorReset
+                | CommandType::AckCcCi
+                | CommandType::SetNotificationEnable
+                | CommandType::SetCcom
+                | CommandType::SetUor
+                | CommandType::SetPdr
+                | CommandType::SetNewCam
+        )
+    }
+}
+
 /// Invalid command type error
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -144,6 +167,7 @@ impl<Context, T: PortId> Decode<Context> for Command<T> {
         let header = CommandHeader::decode(decoder)?;
         let mut decoder = decoder.with_context(header);
         match header.command() {
+            // PPM commands
             CommandType::PpmReset
             | CommandType::Cancel
             | CommandType::GetCapability
@@ -152,23 +176,11 @@ impl<Context, T: PortId> Decode<Context> for Command<T> {
                 let command = ppm::Command::decode(&mut decoder)?;
                 Ok(Command::PpmCommand(command))
             }
-            CommandType::GetConnectorStatus | CommandType::GetConnectorCapability => {
+            // All other commands are LPM commands
+            _ => {
                 let command = lpm::Command::decode(&mut decoder)?;
                 Ok(Command::LpmCommand(command))
             }
-            _ => Err(DecodeError::UnexpectedVariant {
-                type_name: "CommandType",
-                allowed: &AllowedEnumVariants::Allowed(&[
-                    CommandType::PpmReset as u32,
-                    CommandType::Cancel as u32,
-                    CommandType::ConnectorReset as u32,
-                    CommandType::GetConnectorStatus as u32,
-                    CommandType::AckCcCi as u32,
-                    CommandType::SetNotificationEnable as u32,
-                    CommandType::GetConnectorStatus as u32,
-                ]),
-                found: header.command() as u32,
-            }),
         }
     }
 }
@@ -352,7 +364,6 @@ mod tests {
     use bincode::decode_from_slice;
 
     use super::*;
-    use crate::GlobalPortId;
 
     /// Test PPM command decoding
     ///
@@ -386,10 +397,7 @@ mod tests {
         assert_eq!(consumed, bytes.len());
         assert_eq!(
             get_connector_status,
-            Command::LpmCommand(lpm::Command {
-                port: GlobalPortId(1),
-                operation: lpm::CommandData::GetConnectorStatus,
-            })
+            Command::LpmCommand(lpm::Command::new(GlobalPortId(1), lpm::CommandData::GetConnectorStatus))
         );
     }
 
