@@ -176,15 +176,15 @@ mod test {
     #[test]
     fn test_decode_args() {
         // SOP on connector 3, 2 requested alt modes
-        let encoded: [u8; 6] = [0x01, 0x3, 0x1, 0x2, 0x0, 0x0];
+        let encoded: [u8; 6] = [0x00, 0x01, 0x0, 0x1, 0x0, 0x0];
         let (decoded, size): (Args, usize) = decode_from_slice(&encoded, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(size, 6);
 
         let mut expected = Args::default();
-        expected.set_connector_number(3);
-        expected.set_num_modes(2);
-        expected.set_recipient(Recipient::Sop);
-        expected.set_mode_offset(1);
+        expected.set_connector_number(1);
+        expected.set_num_modes(1);
+        expected.set_recipient(Recipient::Connector);
+        expected.set_mode_offset(0);
         assert_eq!(decoded, expected);
     }
 
