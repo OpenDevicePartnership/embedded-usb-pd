@@ -2,7 +2,7 @@
 
 /// Source transition request time in milliseconds for SPR mode.
 ///
-/// This is the max value of `tPSTransition` for EPR mode.
+/// This is the max value of `tPSTransition` for SPR mode.
 pub const T_SRC_TRANS_REQ_SPR_MS: u16 = 550;
 
 /// Source transition request time in milliseconds for EPR mode.
