@@ -14,7 +14,6 @@ pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() -
 bitfield! {
     /// Raw arguments
     #[derive(Copy, Clone, Default, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub(super) struct ArgsRaw(u16);
     impl Debug;
 
@@ -28,6 +27,22 @@ bitfield! {
     pub bool, drp, set_drp: 9;
     /// Disabled
     pub bool, disabled, set_disabled: 10;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for ArgsRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "ArgsRaw {{ .0: {}, connector_number: {}, rp: {}, rd: {}, drp: {}, disabled: {} }}",
+            self.0,
+            self.connector_number(),
+            self.rp(),
+            self.rd(),
+            self.drp(),
+            self.disabled()
+        )
+    }
 }
 
 /// Command arguments

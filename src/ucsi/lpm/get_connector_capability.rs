@@ -16,7 +16,6 @@ pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() -
 bitfield! {
     /// Operation mode raw flags
     #[derive(Copy, Default, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct OperationModeFlagsRaw(u8);
     impl Debug;
     pub bool, rp_only, set_rp_only: 0;
@@ -27,6 +26,33 @@ bitfield! {
     pub bool, usb2, set_usb2: 5;
     pub bool, usb3, set_usb3: 6;
     pub bool, alternate_mode, set_alternate_mode: 7;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for OperationModeFlagsRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "OperationModeFlagsRaw {{ .0: {}, \
+            rp_only: {}, \
+            rd_only: {}, \
+            drp: {}, \
+            analog_audio: {}, \
+            debug_accessory: {}, \
+            usb2: {}, \
+            usb3: {}, \
+            alternate_mode: {} }}",
+            self.0,
+            self.rp_only(),
+            self.rd_only(),
+            self.drp(),
+            self.analog_audio(),
+            self.debug_accessory(),
+            self.usb2(),
+            self.usb3(),
+            self.alternate_mode(),
+        )
+    }
 }
 
 /// Operation mode flags
@@ -129,7 +155,6 @@ impl From<OperationModeFlags> for u8 {
 bitfield! {
     /// Raw GET_CONNECTOR_CAPABILITY response bitfield
     #[derive(Copy, Clone, Default, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct ResponseDataRaw(u16);
     impl Debug;
 
@@ -140,6 +165,31 @@ bitfield! {
     pub bool, swap_to_ufp, set_swap_to_ufp: 11;
     pub bool, swap_to_src, set_swap_to_src: 12;
     pub bool, swap_to_snk, set_swap_to_snk: 13;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for ResponseDataRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "ResponseDataRaw {{ .0: {}, \
+            operation_mode: {}, \
+            provider: {}, \
+            consumer: {}, \
+            swap_to_dfp: {}, \
+            swap_to_ufp: {}, \
+            swap_to_src: {}, \
+            swap_to_snk: {} }}",
+            self.0,
+            self.operation_mode(),
+            self.provider(),
+            self.consumer(),
+            self.swap_to_dfp(),
+            self.swap_to_ufp(),
+            self.swap_to_src(),
+            self.swap_to_snk()
+        )
+    }
 }
 
 /// Response data

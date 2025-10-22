@@ -9,7 +9,6 @@ use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
 bitfield! {
     /// Raw ack flags, see UCSI spec 6.5.4 for details
     #[derive(Copy, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     struct AckRaw(u8);
     impl Debug;
 
@@ -17,6 +16,19 @@ bitfield! {
     pub bool, connector_change, set_connector_change: 0;
     /// Ack command complete
     pub bool, command_complete, set_command_complete: 1;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for AckRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "AckRaw {{ .0: {}, connector_change: {}, command_complete: {} }}",
+            self.0,
+            self.connector_change(),
+            self.command_complete()
+        )
+    }
 }
 
 /// Higher-level wrapper around [`AckRaw`]

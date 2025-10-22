@@ -17,7 +17,6 @@ impl From<InvalidType> for PdError {
 bitfield! {
     /// Battery status change flags
     #[derive(Copy, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct BatteryStatusChangeRaw(u8);
     impl Debug;
 
@@ -25,6 +24,19 @@ bitfield! {
     pub u8, fixed_battery_status_change, set_fixed_battery_status_change: 7, 4;
     /// Hot swappable battery status
     pub u8, hot_swappable_battery_status, set_hot_swappable_battery_status: 3, 0;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for BatteryStatusChangeRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "BatteryStatusChangeRaw {{ .0: {}, fixed_battery_status_change: {}, hot_swappable_battery_status: {} }}",
+            self.0,
+            self.fixed_battery_status_change(),
+            self.hot_swappable_battery_status()
+        )
+    }
 }
 
 /// Battery status change event

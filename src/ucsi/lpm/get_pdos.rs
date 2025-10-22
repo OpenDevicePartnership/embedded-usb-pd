@@ -18,7 +18,6 @@ pub const MAX_PDOS: usize = 4;
 bitfield! {
     /// Raw arguments
     #[derive(Copy, Clone, Default, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub(super) struct ArgsRaw(u32);
     impl Debug;
 
@@ -34,6 +33,23 @@ bitfield! {
     pub bool, source, set_source: 18;
     /// Source type capability
     pub u8, source_capability_type, set_source_capability_type: 20, 19;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for ArgsRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "ArgsRaw {{ .0: {}, connector_number: {}, partner: {}, pdo_offset: {}, num_pdos: {}, source: {}, source_capability_type: {} }}",
+            self.0,
+            self.connector_number(),
+            self.partner(),
+            self.pdo_offset(),
+            self.num_pdos(),
+            self.source(),
+            self.source_capability_type()
+        )
+    }
 }
 
 /// Source capability type to query

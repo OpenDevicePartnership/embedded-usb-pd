@@ -15,7 +15,6 @@ pub const COMMAND_DATA_LEN: usize = 6;
 bitfield! {
     /// Raw arguments
     #[derive(Copy, Clone, Default, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub(super) struct ArgsRaw([u8]);
     impl Debug;
 
@@ -33,6 +32,31 @@ bitfield! {
     pub u8, operating_current, set_operating_current: 27, 20;
     /// Output voltage in 20mV/25mV units depending on [`lsb_control`]
     pub u16, output_voltage, set_output_voltage: 41, 30;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for ArgsRaw<[u8; COMMAND_DATA_LEN]> {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "ArgsRaw {{ .0: {}, \
+            connector_number: {}, \
+            power_role: {}, \
+            max_power: {}, \
+            type_c_current: {}, \
+            lsb_control: {}, \
+            operating_current: {}, \
+            output_voltage: {} }}",
+            self.0,
+            self.connector_number(),
+            self.power_role(),
+            self.max_power(),
+            self.type_c_current(),
+            self.lsb_control(),
+            self.operating_current(),
+            self.output_voltage()
+        )
+    }
 }
 
 /// Type-C current

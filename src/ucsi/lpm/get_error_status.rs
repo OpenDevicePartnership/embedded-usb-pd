@@ -35,7 +35,6 @@ impl<Context> Decode<Context> for Args {
 bitfield! {
     /// Raw error bitfield
     #[derive(Copy, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     struct InformationRaw(u16);
     impl Debug;
 
@@ -69,6 +68,47 @@ bitfield! {
     pub bool, reverse_current_protection, set_reverse_current_protection: 13;
     /// Set sink path rejected
     pub bool, sink_path_rejected, set_sink_path_rejected: 14;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for InformationRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "InformationRaw {{ .0: {}, \
+            unrecognized_command: {}, \
+            invalid_connector: {}, \
+            invalid_command_args: {}, \
+            incompatible_partner: {}, \
+            cc_comm: {}, \
+            dead_battery: {}, \
+            contract_failure: {}, \
+            overcurrent: {}, \
+            undefined: {}, \
+            port_partner_rejected_swap: {}, \
+            hard_reset: {}, \
+            ppm_policy_conflict: {}, \
+            swap_rejected: {}, \
+            reverse_current_protection: {}, \
+            sink_path_rejected: {} }}",
+            self.0,
+            self.unrecognized_command(),
+            self.invalid_connector(),
+            self.invalid_command_args(),
+            self.incompatible_partner(),
+            self.cc_comm(),
+            self.dead_battery(),
+            self.contract_failure(),
+            self.overcurrent(),
+            self.undefined(),
+            self.port_partner_rejected_swap(),
+            self.hard_reset(),
+            self.ppm_policy_conflict(),
+            self.swap_rejected(),
+            self.reverse_current_protection(),
+            self.sink_path_rejected()
+        )
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

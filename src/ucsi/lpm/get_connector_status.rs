@@ -17,7 +17,6 @@ pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() -
 bitfield! {
     /// Connector Status Change bitmap
     #[derive(Copy, Default, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct ConnectorStatusChangeRaw(u16);
     impl Debug;
     /// External supply change
@@ -42,6 +41,39 @@ bitfield! {
     pub bool, connect_change, set_connect_change: 14;
     /// Error
     pub bool, error, set_error: 15;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for ConnectorStatusChangeRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "ConnectorStatusChangeRaw {{ .0: {}, \
+            external_supply_change: {}, \
+            power_op_mode_change: {}, \
+            provider_caps_change: {}, \
+            negotiated_power_level_change: {}, \
+            pd_reset_complete: {}, \
+            supported_cam_change: {}, \
+            battery_charging_status_change: {}, \
+            connector_partner_changed: {}, \
+            power_direction_changed: {}, \
+            connect_change: {}, \
+            error: {} }}",
+            self.0,
+            self.external_supply_change(),
+            self.power_op_mode_change(),
+            self.provider_caps_change(),
+            self.negotiated_power_level_change(),
+            self.pd_reset_complete(),
+            self.supported_cam_change(),
+            self.battery_charging_status_change(),
+            self.connector_partner_changed(),
+            self.power_direction_changed(),
+            self.connect_change(),
+            self.error()
+        )
+    }
 }
 
 /// Higher-level wrapper around [`ConnectorStatusChangeRaw`]
@@ -161,8 +193,13 @@ impl ConnectorStatusChange {
     }
 
     /// Returns true if no status change flags are set
-    pub fn is_none(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.0 .0 == 0
+    }
+
+    /// Returns true if any status change flags are set
+    pub fn any(&self) -> bool {
+        self.0 .0 != 0
     }
 
     /// Returns a new connector status change with all flags that match the given notification enable flags
@@ -241,7 +278,6 @@ impl TryFrom<u8> for PowerOperationMode {
 bitfield! {
     /// Raw connector partner flags
     #[derive(Copy, Default, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct ConnectorPartnerFlagsRaw(u8);
     impl Debug;
 
@@ -249,6 +285,19 @@ bitfield! {
     pub bool, usb, set_usb: 0;
     /// Alternate mode
     pub bool, alt_mode, set_alt_mode: 1;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for ConnectorPartnerFlagsRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "ConnectorPartnerFlagsRaw {{ .0: {}, usb: {}, alt_mode: {} }}",
+            self.0,
+            self.usb(),
+            self.alt_mode()
+        )
+    }
 }
 
 /// Connector partner flags
@@ -401,13 +450,25 @@ impl TryFrom<u8> for BatteryChargingCapabilityStatus {
 bitfield! {
     /// Provider Capabilities Limited Reason
     #[derive(Copy, Clone, Default, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct ProviderCapsLimitedReasonRaw(u8);
     impl Debug;
     /// Power budget lowered
     pub bool, power_budget_lowered, set_power_budget_lowered: 0;
     /// Reaching power budget limit
     pub bool, reaching_power_budget_limit, set_reaching_power_budget_limit: 1;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for ProviderCapsLimitedReasonRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "ProviderCapsLimitedReasonRaw {{ .0: {}, power_budget_lowered: {}, reaching_power_budget_limit: {} }}",
+            self.0,
+            self.power_budget_lowered(),
+            self.reaching_power_budget_limit()
+        )
+    }
 }
 
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
@@ -470,6 +531,38 @@ bitfield! {
     pub u8, provider_caps_limited, set_provider_caps_limited: 69, 66;
     // bcdPDVersion Operation Mode
     pub u16, bcd_pd_version, set_bcd_pd_version: 85, 70;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for ResponseDataRaw<[u8; RESPONSE_DATA_LEN]> {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "ResponseDataRaw {{ .0: {}\
+                status_change: {}, \
+                power_op_mode: {}, \
+                connect_status: {}, \
+                power_direction: {}, \
+                partner_flags: {}, \
+                partner_type: {}, \
+                rdo: {}, \
+                battery_charging_status: {}, \
+                provider_caps_limited: {}, \
+                bcd_pd_version: {} \
+            }}",
+            self.0,
+            self.status_change(),
+            self.power_op_mode(),
+            self.connect_status(),
+            self.power_direction(),
+            self.partner_flags(),
+            self.partner_type(),
+            self.rdo(),
+            self.battery_charging_status(),
+            self.provider_caps_limited(),
+            self.bcd_pd_version()
+        )
+    }
 }
 
 /// All fields that are only valid when connect_status is true

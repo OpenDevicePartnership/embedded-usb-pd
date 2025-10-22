@@ -249,7 +249,6 @@ pub type LocalResponse = Response<LocalPortId>;
 bitfield! {
     /// Common header shared by all UCSI commands
     #[derive(Copy, Clone)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub(self) struct CommandHeaderRaw(u16);
     impl Debug;
 
@@ -257,6 +256,18 @@ bitfield! {
     pub u8, command, set_command: 7, 0;
     /// Data length
     pub u8, data_len, set_data_len: 15, 8;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for CommandHeaderRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "CommandHeaderRaw {{ command: {}, data_len: {} }}",
+            self.command(),
+            self.data_len()
+        )
+    }
 }
 
 /// Higher-level wrapper around [`CommandHeaderRaw`]

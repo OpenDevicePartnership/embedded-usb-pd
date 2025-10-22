@@ -14,7 +14,6 @@ pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() -
 bitfield! {
     /// Raw arguments
     #[derive(Copy, Clone, Default, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub(super) struct ArgsRaw(u16);
     impl Debug;
 
@@ -26,6 +25,21 @@ bitfield! {
     pub bool, swap_sink, set_swap_sink: 8;
     /// Accept power-role swap
     pub bool, accept_swap, set_accept_swap: 9;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for ArgsRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "ArgsRaw {{ .0: {}, connector_number: {}, swap_source: {}, swap_sink: {}, accept_swap: {} }}",
+            self.0,
+            self.connector_number(),
+            self.swap_source(),
+            self.swap_sink(),
+            self.accept_swap()
+        )
+    }
 }
 
 /// Command arguments

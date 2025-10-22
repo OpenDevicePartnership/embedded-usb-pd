@@ -35,7 +35,6 @@ impl<Context> Decode<Context> for Args {
 bitfield! {
     /// Optional features bitmap for GetCapability command
     #[derive(Copy, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     struct OptionalFeaturesRaw(u32);
     impl Debug;
 
@@ -57,6 +56,26 @@ bitfield! {
     pub bool, pd_reset_notif_supported, set_pd_reset_notif_supported: 7;
     /// Supports GET_PD_MESSAGE
     pub bool, get_pd_msg_supported, set_get_pd_msg_supported: 8;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for OptionalFeaturesRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "OptionalFeaturesRaw {{ .0: {}, set_ccom_supported: {}, set_power_level_supported: {}, altmode_details_supported: {}, altmode_override_supported: {}, pdo_details_supported: {}, cable_details_supported: {}, external_supply_notif_supported: {}, pd_reset_notif_supported: {}, get_pd_msg_supported: {} }}",
+            self.0,
+            self.set_ccom_supported(),
+            self.set_power_level_supported(),
+            self.altmode_details_supported(),
+            self.altmode_override_supported(),
+            self.pdo_details_supported(),
+            self.cable_details_supported(),
+            self.external_supply_notif_supported(),
+            self.pd_reset_notif_supported(),
+            self.get_pd_msg_supported()
+        )
+    }
 }
 
 /// Higher-level wrapper around [`OptionalFeaturesRaw`]
@@ -200,7 +219,6 @@ impl<Context> Decode<Context> for OptionalFeatures {
 bitfield! {
     /// Raw power source data for GetCapability command
     #[derive(Copy, Clone)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     struct PowerSourceRaw(u8);
     impl Debug;
 
@@ -210,6 +228,20 @@ bitfield! {
     pub bool, other, set_other: 2;
     /// Uses VBUS
     pub bool, use_vbus, set_uses_vbus: 6;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for PowerSourceRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "PowerSourceRaw {{ .0: {}, ac_supply: {}, other: {}, use_vbus: {} }}",
+            self.0,
+            self.ac_supply(),
+            self.other(),
+            self.use_vbus()
+        )
+    }
 }
 
 /// Higher-level wrapper around [`PowerSourceRaw`]
@@ -280,7 +312,6 @@ impl<Context> Decode<Context> for PowerSource {
 bitfield! {
     /// Raw attribute data for GetCapability command
     #[derive(Copy, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     struct AttributesRaw(u32);
     impl Debug;
 
@@ -294,6 +325,27 @@ bitfield! {
     pub bool, usb_type_c_current, set_usb_type_c_current: 6;
     /// Supported power sources bitmap
     pub u8, bm_power_source, set_bm_power_source: 15, 8;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for AttributesRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "AttributesRaw {{ .0: {}, \
+            disabled_state_support: {}, \
+            battery_charging: {}, \
+            usb_power_delivery: {}, \
+            usb_type_c_current: {}, \
+            bm_power_source: {} }}",
+            self.0,
+            self.disabled_state_support(),
+            self.battery_charging(),
+            self.usb_power_delivery(),
+            self.usb_type_c_current(),
+            self.bm_power_source()
+        )
+    }
 }
 
 /// Higher-level wrapper around [`AttributesRaw`]

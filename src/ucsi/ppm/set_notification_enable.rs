@@ -8,7 +8,6 @@ use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
 bitfield! {
     /// Argument for SET_NOTIFICATION_ENABLE see USCI spec 6.5.5
     #[derive(Copy, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub(super) struct NotificationEnableRaw(u16);
     impl Debug;
 
@@ -36,6 +35,41 @@ bitfield! {
     pub bool, connect_change, set_connect_change: 14;
     /// Notify on error
     pub bool, error, set_error: 15;
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for NotificationEnableRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "NotificationEnableRaw {{ .0: {}, \
+            cmd_complete: {}, \
+            external_supply_change: {}, \
+            power_op_mode_change: {}, \
+            provider_caps_change: {}, \
+            power_lvl_change: {}, \
+            pd_reset_complete: {}, \
+            cam_change: {}, \
+            battery_charge_change: {}, \
+            connector_partner_change: {}, \
+            power_dir_change: {}, \
+            connect_change: {}, \
+            error: {} }}",
+            self.0,
+            self.cmd_complete(),
+            self.external_supply_change(),
+            self.power_op_mode_change(),
+            self.provider_caps_change(),
+            self.power_lvl_change(),
+            self.pd_reset_complete(),
+            self.cam_change(),
+            self.battery_charge_change(),
+            self.connector_partner_change(),
+            self.power_dir_change(),
+            self.connect_change(),
+            self.error()
+        )
+    }
 }
 
 /// Higher-level wrapper around [`SetNotificationEnableRaw`]
@@ -179,6 +213,11 @@ impl NotificationEnable {
     /// Returns true if no notification is enabled
     pub fn is_empty(&self) -> bool {
         self.0 .0 == 0
+    }
+
+    /// Returns true if any status change flags are set
+    pub fn any(&self) -> bool {
+        self.0 .0 != 0
     }
 
     /// Returns the union of two notification enable sets

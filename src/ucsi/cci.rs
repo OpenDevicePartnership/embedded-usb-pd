@@ -5,7 +5,6 @@ use crate::{GlobalPortId, LocalPortId, PortId};
 bitfield! {
     /// Command status and connect change indicator, see UCSI spec 4.2
     #[derive(Copy, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     struct CciRaw(u32);
     impl Debug;
 
@@ -239,3 +238,27 @@ impl<T: PortId> Default for Cci<T> {
 
 pub type GlobalCci = Cci<GlobalPortId>;
 pub type LocalCci = Cci<LocalPortId>;
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for CciRaw {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "CciRaw {{ .0: {}, eom: {}, connector_change: {}, data_len: {}, vendor_message: {}, security_req: {}, fw_update_req: {}, not_supported: {}, cancel_complete: {}, reset_complete: {}, busy: {}, ack_command: {}, error: {}, cmd_complete: {} }}",
+            self.0,
+            self.eom(),
+            self.connector_change(),
+            self.data_len(),
+            self.vendor_message(),
+            self.security_req(),
+            self.fw_update_req(),
+            self.not_supported(),
+            self.cancel_complete(),
+            self.reset_complete(),
+            self.busy(),
+            self.ack_command(),
+            self.error(),
+            self.cmd_complete(),
+        )
+    }
+}
