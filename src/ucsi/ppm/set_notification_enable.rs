@@ -217,7 +217,7 @@ impl NotificationEnable {
 
     /// Returns true if any status change flags are set
     pub fn any(&self) -> bool {
-        self.0 .0 != 0
+        !self.is_empty()
     }
 
     /// Returns the union of two notification enable sets

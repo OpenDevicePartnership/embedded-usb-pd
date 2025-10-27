@@ -199,7 +199,7 @@ impl ConnectorStatusChange {
 
     /// Returns true if any status change flags are set
     pub fn any(&self) -> bool {
-        self.0 .0 != 0
+        !self.is_empty()
     }
 
     /// Returns a new connector status change with all flags that match the given notification enable flags
