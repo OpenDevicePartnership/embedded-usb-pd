@@ -17,7 +17,7 @@ impl From<InvalidType> for PdError {
 bitfield! {
     /// Battery status change flags
     #[derive(Copy, Clone, PartialEq, Eq)]
-    pub struct BatteryStatusChangeRaw(u8);
+    struct BatteryStatusChangeRaw(u8);
     impl Debug;
 
     /// Fixed battery status change
@@ -69,7 +69,7 @@ bitfield! {
     /// Raw ADO type
     #[derive(Copy, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-    pub struct AdoRaw(u32);
+    struct AdoRaw(u32);
     impl Debug;
 
     /// Type of alert
@@ -138,6 +138,52 @@ impl TryFrom<u32> for Ado {
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         AdoRaw(value).try_into()
+    }
+}
+
+impl From<Ado> for u32 {
+    fn from(ado: Ado) -> Self {
+        let mut raw = AdoRaw(0);
+
+        match ado {
+            Ado::BatteryStatusChange(bsc) => {
+                raw.set_alert_type(0x02);
+                raw.set_battery_status_change(bsc.0 .0);
+            }
+            Ado::Ocp => {
+                raw.set_alert_type(0x04);
+            }
+            Ado::Otp => {
+                raw.set_alert_type(0x08);
+            }
+            Ado::OperatingConditionChange => {
+                raw.set_alert_type(0x10);
+            }
+            Ado::SourceInputChange => {
+                raw.set_alert_type(0x20);
+            }
+            Ado::Ovp => {
+                raw.set_alert_type(0x40);
+            }
+            Ado::PowerStateChange => {
+                raw.set_alert_type(0x80);
+                raw.set_extended_alert_type(0x01);
+            }
+            Ado::PowerButtonPress => {
+                raw.set_alert_type(0x80);
+                raw.set_extended_alert_type(0x02);
+            }
+            Ado::PowerButtonRelease => {
+                raw.set_alert_type(0x80);
+                raw.set_extended_alert_type(0x03);
+            }
+            Ado::ControllerInitiatedWake => {
+                raw.set_alert_type(0x80);
+                raw.set_extended_alert_type(0x04);
+            }
+        }
+
+        raw.0
     }
 }
 
@@ -231,5 +277,15 @@ mod tests {
         let mut raw = AdoRaw(0);
         raw.set_alert_type(0xFF);
         assert!(Ado::try_from(raw).is_err());
+    }
+
+    #[test]
+    fn test_ado_roundtrip() {
+        const RAW_ADO: u32 = 0x02010000;
+        let ado = Ado::try_from(RAW_ADO).expect("Failed to parse raw ADO");
+        let expected = Ado::BatteryStatusChange(BatteryStatusChange(BatteryStatusChangeRaw(0x01)));
+        assert_eq!(ado, expected);
+        let raw_converted: u32 = ado.into();
+        assert_eq!(RAW_ADO, raw_converted);
     }
 }

@@ -46,14 +46,14 @@ impl Common for Pdo {
 
     fn dual_role_power(&self) -> bool {
         match self {
-            Pdo::Fixed(data) => data.flags.dual_role_power,
+            Pdo::Fixed(data) => data.dual_role_power,
             _ => false,
         }
     }
 
     fn unconstrained_power(&self) -> bool {
         match self {
-            Pdo::Fixed(data) => data.flags.unconstrained_power,
+            Pdo::Fixed(data) => data.unconstrained_power,
             _ => false,
         }
     }
@@ -171,38 +171,40 @@ impl From<PeakCurrent> for u8 {
 }
 
 bitfield! {
-    /// Raw fixed supply flags
+    /// Raw fixed supply PDO data
     #[derive(Copy, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-    pub struct FixedFlagsRaw(u8);
+    struct FixedRaw(u32);
     impl Debug;
 
-     /// Dual role power capable
-    pub bool, dual_role_power, set_dual_role_power: 6;
+    /// PDO kind
+    pub u8, kind, set_kind: 31, 30;
+    /// Dual role power capable
+    pub bool, dual_role_power, set_dual_role_power: 29;
     /// USB suspend supported
-    pub bool, usb_suspend_supported, set_usb_suspend_supported: 5;
+    pub bool, usb_suspend_supported, set_usb_suspend_supported: 28;
     /// Unconstrained power
-    pub bool, unconstrained_power, set_unconstrained_power: 4;
+    pub bool, unconstrained_power, set_unconstrained_power: 27;
     /// USB comms capable
-    pub bool, usb_comms_capable, set_usb_comms_capable: 3;
+    pub bool, usb_comms_capable, set_usb_comms_capable: 26;
     /// Dual role data capable
-    pub bool, dual_role_data, set_dual_role_data: 2;
+    pub bool, dual_role_data, set_dual_role_data: 25;
     /// Unchunked extended messages support
-    pub bool, unchunked_extended_messages_support, set_unchunked_extended_messages_support: 1;
+    pub bool, unchunked_extended_messages_support, set_unchunked_extended_messages_support: 24;
     /// EPR capable
-    pub bool, epr_capable, set_epr_capable: 0;
+    pub bool, epr_capable, set_epr_capable: 23;
+    /// Peak current
+    pub u8, peak_current, set_peak_current: 21, 20;
+    /// Voltage in 50 mV units
+    pub u16, voltage, set_voltage: 19, 10;
+    /// Current in 10 mA units
+    pub u16, current, set_current: 9, 0;
 }
 
-impl From<u8> for FixedFlagsRaw {
-    fn from(value: u8) -> Self {
-        FixedFlagsRaw(value)
-    }
-}
-
-/// Fixed supply flags
+/// Fixed supply PDO data
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct FixedFlags {
+pub struct FixedData {
     /// Dual role power capable
     pub dual_role_power: bool,
     /// USB suspend supported
@@ -217,67 +219,6 @@ pub struct FixedFlags {
     pub unchunked_extended_messages_support: bool,
     /// EPR capable
     pub epr_capable: bool,
-}
-
-impl From<FixedFlagsRaw> for FixedFlags {
-    fn from(raw: FixedFlagsRaw) -> Self {
-        FixedFlags {
-            dual_role_power: raw.dual_role_power(),
-            usb_suspend_supported: raw.usb_suspend_supported(),
-            unconstrained_power: raw.unconstrained_power(),
-            usb_comms_capable: raw.usb_comms_capable(),
-            dual_role_data: raw.dual_role_data(),
-            unchunked_extended_messages_support: raw.unchunked_extended_messages_support(),
-            epr_capable: raw.epr_capable(),
-        }
-    }
-}
-
-impl From<u8> for FixedFlags {
-    fn from(value: u8) -> Self {
-        FixedFlagsRaw::from(value).into()
-    }
-}
-
-impl From<FixedFlags> for u8 {
-    fn from(value: FixedFlags) -> Self {
-        let mut raw = FixedFlagsRaw(0);
-        raw.set_dual_role_power(value.dual_role_power);
-        raw.set_usb_suspend_supported(value.usb_suspend_supported);
-        raw.set_unconstrained_power(value.unconstrained_power);
-        raw.set_usb_comms_capable(value.usb_comms_capable);
-        raw.set_dual_role_data(value.dual_role_data);
-        raw.set_unchunked_extended_messages_support(value.unchunked_extended_messages_support);
-        raw.set_epr_capable(value.epr_capable);
-        raw.0
-    }
-}
-
-bitfield! {
-    /// Raw fixed supply PDO data
-    #[derive(Copy, Clone, PartialEq, Eq)]
-    #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-    pub struct FixedRaw(u32);
-    impl Debug;
-
-    /// PDO kind
-    pub u8, kind, set_kind: 31, 30;
-    // Fixed PDO flags
-    pub u8, flags, set_flags: 29, 23;
-    /// Peak current
-    pub u8, peak_current, set_peak_current: 21, 20;
-    /// Voltage in 50 mV units
-    pub u16, voltage, set_voltage: 19, 10;
-    /// Peak current in 10 mA units
-    pub u16, current, set_current: 9, 0;
-}
-
-/// Fixed supply PDO data
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct FixedData {
-    /// Fixed flags
-    pub flags: FixedFlags,
     /// Peak current
     pub peak_current: PeakCurrent,
     /// Voltage in mV
@@ -289,7 +230,13 @@ pub struct FixedData {
 impl From<FixedRaw> for FixedData {
     fn from(raw: FixedRaw) -> Self {
         FixedData {
-            flags: FixedFlags::from(raw.flags()),
+            dual_role_power: raw.dual_role_power(),
+            usb_suspend_supported: raw.usb_suspend_supported(),
+            unconstrained_power: raw.unconstrained_power(),
+            usb_comms_capable: raw.usb_comms_capable(),
+            dual_role_data: raw.dual_role_data(),
+            unchunked_extended_messages_support: raw.unchunked_extended_messages_support(),
+            epr_capable: raw.epr_capable(),
             peak_current: raw.peak_current().into(),
             voltage_mv: raw.voltage() * MV50_UNIT,
             current_ma: raw.current() * MA10_UNIT,
@@ -317,7 +264,13 @@ impl From<FixedData> for u32 {
     fn from(data: FixedData) -> Self {
         let mut raw = FixedRaw(0);
         raw.set_kind(PdoKind::Fixed as u8);
-        raw.set_flags(data.flags.into());
+        raw.set_dual_role_power(data.dual_role_power);
+        raw.set_usb_suspend_supported(data.usb_suspend_supported);
+        raw.set_unconstrained_power(data.unconstrained_power);
+        raw.set_usb_comms_capable(data.usb_comms_capable);
+        raw.set_dual_role_data(data.dual_role_data);
+        raw.set_unchunked_extended_messages_support(data.unchunked_extended_messages_support);
+        raw.set_epr_capable(data.epr_capable);
         raw.set_peak_current(data.peak_current.into());
         raw.set_voltage(data.voltage_mv / MV50_UNIT);
         raw.set_current(data.current_ma / MA10_UNIT);
@@ -329,7 +282,7 @@ bitfield! {
     /// Raw battery PDO data
     #[derive(Copy, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-    pub struct BatteryRaw(u32);
+    struct BatteryRaw(u32);
     impl Debug;
 
     /// PDO kind
@@ -395,7 +348,7 @@ bitfield! {
     /// Raw variable supply PDO data
     #[derive(Copy, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-    pub struct VariableRaw(u32);
+    struct VariableRaw(u32);
     impl Debug;
 
     /// PDO kind
@@ -505,7 +458,7 @@ bitfield! {
     /// Raw SPR Programable power supply data
     #[derive(Copy, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-    pub struct SprPpsRaw(u32);
+    struct SprPpsRaw(u32);
     impl Debug;
 
     /// PDO kind
@@ -579,7 +532,7 @@ bitfield! {
     /// Raw EPR adjustable voltage supply data
     #[derive(Copy, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-    pub struct EprAvsRaw(u32);
+    struct EprAvsRaw(u32);
     impl Debug;
 
     /// PDO kind
@@ -653,7 +606,7 @@ bitfield! {
     /// Raw SPR adjustable voltage supply data
     #[derive(Copy, Clone, PartialEq, Eq)]
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-    pub struct SprAvsRaw(u32);
+    struct SprAvsRaw(u32);
     impl Debug;
 
     /// PDO kind
@@ -714,5 +667,111 @@ impl From<SprAvsData> for u32 {
         raw.set_max_current_15v(data.max_current_15v_ma / MA10_UNIT);
         raw.set_max_current_20v(data.max_current_20v_ma / MA10_UNIT);
         raw.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_fixed_roundtrip() {
+        const RAW_FIXED: u32 = 0x2A900801;
+        let parsed = Pdo::try_from(RAW_FIXED).expect("Failed to parse fixed PDO");
+        let expected = Pdo::Fixed(FixedData {
+            dual_role_power: true,
+            usb_suspend_supported: false,
+            unconstrained_power: true,
+            usb_comms_capable: false,
+            dual_role_data: true,
+            unchunked_extended_messages_support: false,
+            epr_capable: true,
+            peak_current: PeakCurrent::Pct110,
+            voltage_mv: 100,
+            current_ma: 10,
+        });
+        assert_eq!(parsed, expected);
+        assert_eq!(u32::from(expected), RAW_FIXED);
+    }
+
+    #[test]
+    fn test_battery_roundtrip() {
+        const RAW_BATTERY: u32 = 0x40300801;
+        let parsed = Pdo::try_from(RAW_BATTERY).expect("Failed to parse battery PDO");
+        let expected = Pdo::Battery(BatteryData {
+            max_voltage_mv: 150,
+            min_voltage_mv: 100,
+            max_power_mw: 250,
+        });
+        assert_eq!(parsed, expected);
+        assert_eq!(u32::from(expected), RAW_BATTERY);
+    }
+
+    #[test]
+    fn test_variable_roundtrip() {
+        const RAW_VARIABLE: u32 = 0x80300801;
+        let parsed = Pdo::try_from(RAW_VARIABLE).expect("Failed to parse variable PDO");
+        let expected = Pdo::Variable(VariableData {
+            max_voltage_mv: 150,
+            min_voltage_mv: 100,
+            max_current_ma: 10,
+        });
+        assert_eq!(parsed, expected);
+        assert_eq!(u32::from(expected), RAW_VARIABLE);
+    }
+
+    #[test]
+    fn test_apdo_spr_pps_roundtrip() {
+        const RAW_SPR_PPS: u32 = 0xC8060201;
+        let parsed = Pdo::try_from(RAW_SPR_PPS).expect("Failed to parse SPR PPS PDO");
+        let expected = Pdo::Augmented(Apdo::SprPps(SprPpsData {
+            pps_power_limited: true,
+            max_voltage_mv: 300,
+            min_voltage_mv: 200,
+            max_current_ma: 50,
+        }));
+        assert_eq!(parsed, expected);
+        assert_eq!(u32::from(expected), RAW_SPR_PPS);
+    }
+
+    #[test]
+    fn test_apdo_epr_avs_roundtrip() {
+        const RAW_EPR_AVS: u32 = 0xD4060201;
+        let parsed = Pdo::try_from(RAW_EPR_AVS).expect("Failed to parse EPR AVS PDO");
+        let expected = Pdo::Augmented(Apdo::EprAvs(EprAvsData {
+            peak_current: PeakCurrent::Pct110,
+            max_voltage_mv: 300,
+            min_voltage_mv: 200,
+            pdp_mw: 1000,
+        }));
+        assert_eq!(parsed, expected);
+        assert_eq!(u32::from(expected), RAW_EPR_AVS);
+    }
+
+    #[test]
+    fn test_apdo_spr_avs_roundtrip() {
+        const RAW_SPR_AVS: u32 = 0xE4000401;
+        let parsed = Pdo::try_from(RAW_SPR_AVS).expect("Failed to parse SPR AVS PDO");
+        let expected = Pdo::Augmented(Apdo::SprAvs(SprAvsData {
+            peak_current: PeakCurrent::Pct110,
+            max_current_15v_ma: 10,
+            max_current_20v_ma: 10,
+        }));
+        assert_eq!(parsed, expected);
+        assert_eq!(u32::from(expected), RAW_SPR_AVS);
+    }
+
+    #[test]
+    fn test_invalid_apdo_type() {
+        const RAW_INVALID: u32 = 0xF0000401;
+        let parsed = Pdo::try_from(RAW_INVALID);
+        assert_eq!(
+            parsed,
+            Err(ExpectedPdo {
+                kind: PdoKind::Augmented,
+                apdo_kind: None,
+                raw: RAW_INVALID,
+            })
+        );
     }
 }
