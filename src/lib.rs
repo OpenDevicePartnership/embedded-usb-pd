@@ -8,13 +8,15 @@ pub mod type_c;
 pub mod ucsi;
 pub mod vdm;
 
+use core::hash::Hash;
+
 /// Common port trait
 ///
 /// Ports are identified by a numeric ID. However, a port may have a different numeric ID in different contexts.
 /// Newtypes can provide type-checking of this at compile time. This trait provides a way to work with port IDs in
 /// a generic manner.
 #[cfg(not(feature = "defmt"))]
-pub trait PortId: Into<u8> + From<u8> + Copy + Clone + core::fmt::Debug + PartialEq + Eq {}
+pub trait PortId: Into<u8> + From<u8> + Copy + Clone + core::fmt::Debug + PartialEq + Eq + Hash {}
 
 /// Common port trait
 ///
@@ -22,13 +24,16 @@ pub trait PortId: Into<u8> + From<u8> + Copy + Clone + core::fmt::Debug + Partia
 /// Newtypes can provide type-checking of this at compile time. This trait provides a way to work with port IDs in
 /// a generic manner.
 #[cfg(feature = "defmt")]
-pub trait PortId: Into<u8> + From<u8> + Copy + Clone + core::fmt::Debug + PartialEq + Eq + defmt::Format {}
+pub trait PortId:
+    Into<u8> + From<u8> + Copy + Clone + core::fmt::Debug + PartialEq + Eq + Hash + defmt::Format
+{
+}
 
 /// Port ID new type.
 ///
 /// This differs from [`GlobalPortId`] in that it refers to a port on a specific controller. If
 /// there are multiple controllers, the same port ID may be used on different controllers.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(transparent)]
 pub struct LocalPortId(pub u8);
@@ -51,7 +56,7 @@ impl PortId for LocalPortId {}
 ///
 /// This differs from [`LocalPortId`] in that it is not limited to the number of ports on a single
 /// controller. If there are multiple controllers, each port should have a unique global port ID.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[repr(transparent)]
 pub struct GlobalPortId(pub u8);
