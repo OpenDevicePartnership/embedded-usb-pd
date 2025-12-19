@@ -172,10 +172,17 @@ impl Args {
     }
 
     pub fn source_capability_type(&self) -> SourceCapabilityType {
-        // Won't panic, validated in try_from
+        // Panic Safety: ArgsRaw::source_capability_type is guaranteed to be a valid and defined value of SourceCapabilityType:
+        // 1. Args::set_source_capability_type only accepts SourceCapabilityType values
+        // 2. ArgsRaw::set_source_capability is only set with values from u8::from(SourceCapabilityType)
+        // 3. SourceCapabilityType::try_from(u8) only fails for undefined values and is unit tested with all defined values to roundtrip correctly
+        // 4. The only way to construct an Args is through Args::try_from(u32), which validates SourceCapabilityType::try_from(u8)
+        #[allow(clippy::unwrap_used)]
         self.0.source_capability_type().try_into().unwrap()
     }
 
+    // NOTE: Self::source_capability_type has a SAFETY requirement on argument being `SourceCapabilityType` and only setting with values
+    // returned from `impl From<SourceCapabilityType> for u8`
     pub fn set_source_capability_type(&mut self, source_capabilities_type: SourceCapabilityType) -> &mut Self {
         self.0.set_source_capability_type(source_capabilities_type.into());
         self
@@ -227,13 +234,19 @@ pub struct ResponseData {
 impl ResponseData {
     /// Iterator over valid PDOs
     pub fn iter(&self) -> impl ExactSizeIterator<Item = u32> + '_ {
+        // NOTE: If this changes the panic safety comment below should be revisited
         let last_pdo = self.raw.iter().position(|&pdo| pdo == 0).unwrap_or(self.raw.len());
+        // Panic safety: `last_pdo` will always be in bounds
+        #[allow(clippy::indexing_slicing)]
         self.raw.as_slice()[..last_pdo].iter().copied()
     }
 
     /// Mutable iterator over valid PDOs
     pub fn iter_mut(&mut self) -> impl ExactSizeIterator<Item = &mut u32> + '_ {
+        // NOTE: If this changes the panic safety comment below should be revisited
         let last_pdo = self.raw.iter().position(|&pdo| pdo == 0).unwrap_or(self.raw.len());
+        // Panic safety: `last_pdo` will always be in bounds
+        #[allow(clippy::indexing_slicing)]
         self.raw.as_mut_slice()[..last_pdo].iter_mut()
     }
 }

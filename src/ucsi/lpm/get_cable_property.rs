@@ -68,6 +68,8 @@ impl From<u16> for SpeedSupported {
             0x1 => SpeedSupported::Kbps(raw.value()),
             0x2 => SpeedSupported::Mbps(raw.value()),
             0x3 => SpeedSupported::Gbps(raw.value()),
+            // Panic safety: `units` is constrained to 2 bits via bitfield so this will never panic
+            #[allow(clippy::unreachable)]
             _ => unreachable!(),
         }
     }
@@ -121,11 +123,14 @@ pub enum PlugEndType {
 
 impl From<u8> for PlugEndType {
     fn from(value: u8) -> Self {
+        // NOTE: If this mask changes, the panic safety comment below must be reevaluated
         match value & 0x3 {
             0x0 => PlugEndType::TypeA,
             0x1 => PlugEndType::TypeB,
             0x2 => PlugEndType::TypeC,
             0x3 => PlugEndType::Other,
+            // Panic safety: This will never panic if the mask above does not change
+            #[allow(clippy::unreachable)]
             _ => unreachable!(),
         }
     }

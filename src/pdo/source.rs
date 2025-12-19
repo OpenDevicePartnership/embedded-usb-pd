@@ -146,14 +146,17 @@ pub enum PeakCurrent {
     Pct150,
 }
 
-const PEAK_CURRENT_MASK: u8 = 0x3;
 impl From<u8> for PeakCurrent {
     fn from(value: u8) -> Self {
+        // NOTE: If this mask changes, the panic safety comment below must be reevaluated
+        const PEAK_CURRENT_MASK: u8 = 0x3;
         match value & PEAK_CURRENT_MASK {
             0x0 => PeakCurrent::Pct100,
             0x1 => PeakCurrent::Pct110,
             0x2 => PeakCurrent::Pct125,
             0x3 => PeakCurrent::Pct150,
+            // Panic safety: This will never panic if the mask above does not change
+            #[allow(clippy::unreachable)]
             _ => unreachable!(),
         }
     }

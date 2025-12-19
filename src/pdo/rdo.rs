@@ -22,17 +22,19 @@ pub enum Rdo {
 
 impl Rdo {
     /// Create a new RDO from the raw data and the corresponding PDO
-    pub fn for_pdo(rdo: u32, pdo: impl Common) -> Self {
-        match pdo.kind() {
+    ///
+    /// Returns `None` if `pdo` does not contain an APDO kind
+    pub fn for_pdo(rdo: u32, pdo: impl Common) -> Option<Self> {
+        Some(match pdo.kind() {
             PdoKind::Fixed => Rdo::Fixed(FixedVarRaw(rdo).into()),
             PdoKind::Variable => Rdo::Variable(FixedVarRaw(rdo).into()),
             PdoKind::Battery => Rdo::Battery(BatteryRaw(rdo).into()),
-            PdoKind::Augmented => match pdo.apdo_kind().unwrap() {
+            PdoKind::Augmented => match pdo.apdo_kind()? {
                 ApdoKind::SprPps => Rdo::Pps(PpsRaw(rdo).into()),
                 ApdoKind::EprAvs => Rdo::Pps(PpsRaw(rdo).into()),
                 ApdoKind::SprAvs => Rdo::Avs(AvsRaw(rdo).into()),
             },
-        }
+        })
     }
 }
 
@@ -375,7 +377,8 @@ mod tests {
                 voltage_mv: 0,
                 operational_current_ma: 0,
             }),
-        );
+        )
+        .unwrap();
         let expected = Rdo::Fixed(FixedVarData {
             object_position: 3,
             capability_mismatch: true,
@@ -401,7 +404,8 @@ mod tests {
                 min_voltage_mv: 0,
                 operational_current_ma: 0,
             }),
-        );
+        )
+        .unwrap();
         let expected = Rdo::Variable(FixedVarData {
             object_position: 3,
             capability_mismatch: true,
@@ -427,7 +431,8 @@ mod tests {
                 min_voltage_mv: 0,
                 operational_power_mw: 0,
             }),
-        );
+        )
+        .unwrap();
         let expected = Rdo::Battery(BatteryData {
             object_position: 3,
             capability_mismatch: true,
@@ -453,7 +458,8 @@ mod tests {
                 min_voltage_mv: 0,
                 max_current_ma: 0,
             })),
-        );
+        )
+        .unwrap();
         let expected = Rdo::Pps(PpsData {
             object_position: 3,
             capability_mismatch: true,
@@ -478,7 +484,8 @@ mod tests {
                 max_current_15v_ma: 0,
                 max_current_20v_ma: 0,
             })),
-        );
+        )
+        .unwrap();
         let expected = Rdo::Avs(AvsData {
             object_position: 3,
             capability_mismatch: true,

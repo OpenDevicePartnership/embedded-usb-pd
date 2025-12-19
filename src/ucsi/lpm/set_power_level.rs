@@ -136,10 +136,17 @@ impl Args {
     }
 
     pub fn type_c_current(&self) -> Current {
-        let current: Result<Current, _> = Current::try_from(self.0.type_c_current());
-        current.unwrap() // Won't panic, validated in try_from
+        // Panic Safety: ArgsRaw::type_c_current is guaranteed to be a valid and defined value of Current:
+        // 1. Args::set_type_c_current only accepts Current values
+        // 2. ArgsRaw::set_type_c_current is only set with values from u8::from(Current)
+        // 3. Current::try_from(u8) only fails for undefined values and is unit tested with all defined values to roundtrip correctly
+        // 4. The only way to construct an Args is through Args::try_from([u8; COMMAND_DATA_LEN]), which validates Current::try_from(u8)
+        #[allow(clippy::unwrap_used)]
+        Current::try_from(self.0.type_c_current()).unwrap()
     }
 
+    // NOTE: Self::type_c_current has a SAFETY requirement on argument being `Current` and only setting with values
+    // returned from `impl From<Current> for u8`
     pub fn set_type_c_current(&mut self, type_c_current: Current) -> &mut Self {
         self.0.set_type_c_current(type_c_current.into());
         self

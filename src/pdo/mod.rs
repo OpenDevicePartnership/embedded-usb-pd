@@ -54,12 +54,15 @@ impl From<u32> for PdoKind {
 
 impl From<u8> for PdoKind {
     fn from(value: u8) -> Self {
+        // NOTE: If this mask changes, the panic safety comment below must be reevaluated
         const PDO_KIND_MASK: u8 = 0x3;
         match value & PDO_KIND_MASK {
             0x0 => PdoKind::Fixed,
             0x1 => PdoKind::Battery,
             0x2 => PdoKind::Variable,
             0x3 => PdoKind::Augmented,
+            // Panic safety: This will never panic if the mask above does not change
+            #[allow(clippy::unreachable)]
             _ => unreachable!(),
         }
     }

@@ -152,12 +152,15 @@ pub enum FrsRequiredCurrent {
 
 impl From<u8> for FrsRequiredCurrent {
     fn from(value: u8) -> Self {
+        // NOTE: If this mask changes, the panic safety comment below must be reevaluated
         const FRS_REQUIRED_CURRENT_MASK: u8 = 0x3;
         match value & FRS_REQUIRED_CURRENT_MASK {
             0 => FrsRequiredCurrent::None,
             1 => FrsRequiredCurrent::Default,
             2 => FrsRequiredCurrent::Current1A5,
             3 => FrsRequiredCurrent::Current3A,
+            // Panic safety: This will never panic if the mask above does not change
+            #[allow(clippy::unreachable)]
             _ => unreachable!(),
         }
     }
