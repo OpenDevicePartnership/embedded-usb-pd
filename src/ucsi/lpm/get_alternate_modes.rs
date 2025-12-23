@@ -54,11 +54,17 @@ pub struct Args(ArgsRaw);
 
 impl Args {
     pub fn recipient(&self) -> Recipient {
-        let recipient: Result<Recipient, _> = self.0.recipient().try_into();
-        // Won't panic, validated in try_from
-        recipient.unwrap()
+        // Panic Safety: ArgsRaw::recipient is guaranteed to be a valid and defined value of Recipient:
+        // 1. Args::set_recipient only accepts Recipient values
+        // 2. ArgsRaw::set_recipient is only set with values from u8::from(Recipient)
+        // 3. Recipient::try_from(u8) only fails for undefined values and is unit tested with all defined values to roundtrip correctly
+        // 4. The only way to construct an Args is through Args::try_from(u32), which validates Recipient::try_from(u8)
+        #[allow(clippy::unwrap_used)]
+        self.0.recipient().try_into().unwrap()
     }
 
+    // NOTE: Self::recipient has a SAFETY requirement on argument being `Recipient` and only setting with values
+    // returned from `impl From<Recipient> for u8`
     pub fn set_recipient(&mut self, recipient: Recipient) -> &mut Self {
         self.0.set_recipient(recipient.into());
         self
@@ -96,9 +102,11 @@ impl TryFrom<u32> for Args {
     type Error = InvalidRecipient;
 
     fn try_from(raw: u32) -> Result<Self, Self::Error> {
+        // note: safety requirements must be upheld by validating enum fields are valid defined values
         let raw = ArgsRaw(raw);
         let _recipient: Recipient = (raw.recipient()).try_into()?;
 
+        // all fields are valid
         Ok(Args(raw))
     }
 }

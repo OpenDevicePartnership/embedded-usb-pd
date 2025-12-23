@@ -704,8 +704,11 @@ impl From<ResponseData> for [u8; RESPONSE_DATA_LEN] {
             raw.set_partner_flags(status.partner_flags.into());
             raw.set_partner_type(status.partner_type as u8);
 
-            if status.rdo.is_some_and(|rdo| rdo != 0) {
-                raw.set_rdo(status.rdo.unwrap());
+            // Note: Can be collapsed to a let chain when this crate is updated to 2024 edition
+            if let Some(rdo) = status.rdo {
+                if rdo != 0 {
+                    raw.set_rdo(rdo)
+                }
             }
 
             if let Some(battery_charging_status) = status.battery_charging_status {

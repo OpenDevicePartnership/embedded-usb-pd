@@ -286,11 +286,18 @@ impl CommandHeader {
 
     /// Returns command type
     pub fn command(&self) -> CommandType {
-        // Unwrap is safe here because we validate the command in `try_from`
+        // Panic Safety: CommandHeaderRaw::command is guaranteed to be a valid and defined value of CommandType:
+        // 1. CommandHeader::set_command only accepts CommandType values
+        // 2. CommandHeaderRaw::set_command is only set with values from u8::from(CommandType)
+        // 3. CommandType::try_from(u8) only fails for undefined values and is unit tested with all defined values to roundtrip correctly
+        // 4. The only way to construct a CommandHeader is through CommandHeader::try_from(u16), which validates CommandType::try_from(u8)
+        #[allow(clippy::unwrap_used)]
         self.0.command().try_into().unwrap()
     }
 
     /// Sets command type
+    // NOTE: Self::command has a SAFETY requirement on argument being `CommandType` and only setting with values
+    // returned from `impl From<CommandType> for u8`
     pub fn set_command(&mut self, command: CommandType) -> &mut Self {
         self.0.set_command(command as u8);
         self
