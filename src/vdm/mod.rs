@@ -1,6 +1,8 @@
-pub mod svid;
+//! Vendor Defined Messages (VDM) allow vendors to exchange information outside of that defined by the PD spec.
+//!
+//! See PD spect 6.4.4 Vendor Defined Message.
 
-pub use svid::Svid;
+pub mod structured;
 
 pub const DATA_OBJ_SIZE: usize = 4;
 pub const MAX_VDOS: usize = 6;
