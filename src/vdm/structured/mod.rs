@@ -3,7 +3,7 @@
 //! See PD spec 6.4.4.2 Structured VDM.
 
 pub mod command;
-mod header;
+pub mod header;
 mod svid;
 
 pub use header::Header;
