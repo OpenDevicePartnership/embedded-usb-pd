@@ -41,12 +41,26 @@ bitfield::bitfield! {
     #[cfg_attr(feature = "defmt", derive(defmt::Format))]
     pub struct Raw(u32);
     impl Debug;
+
+    /// See [`IdHeaderVdo::usb_vendor_id`].
     pub u16, usb_vendor_id, set_usb_vendor_id: 15, 0;
+
+    /// See [`IdHeaderVdo::connector_type`].
     pub u8, connector_type, set_connector_type: 22, 21;
+
+    /// See [`IdHeaderVdo::product_type_dfp`].
     pub u8, product_type_dfp, set_product_type_dfp: 25, 23;
+
+    /// See [`IdHeaderVdo::modal_operation_supported`].
     pub bool, modal_operation_supported, set_modal_operation_supported: 26;
+
+    /// See [`IdHeaderVdo::product_type_ufp`].
     pub u8, product_type_ufp, set_product_type_ufp: 29, 27;
+
+    /// See [`IdHeaderVdo::usb_communication_capable_as_usb_device`].
     pub bool, usb_communication_capable_as_usb_device, set_usb_communication_capable_as_usb_device: 30;
+
+    /// See [`IdHeaderVdo::usb_communication_capable_as_usb_host`].
     pub bool, usb_communication_capable_as_usb_host, set_usb_communication_capable_as_usb_host: 31;
 }
 
