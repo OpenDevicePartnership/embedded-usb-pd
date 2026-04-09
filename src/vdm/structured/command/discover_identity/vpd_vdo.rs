@@ -174,3 +174,57 @@ impl TryFrom<u8> for MaximumVbusVoltage {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod charge_through_current_support {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, ChargeThroughCurrentSupport); 2] = [
+                (0, ChargeThroughCurrentSupport::ThreeAmps),
+                (1, ChargeThroughCurrentSupport::FiveAmps),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(ChargeThroughCurrentSupport::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 2..=255u8 {
+                assert!(
+                    ChargeThroughCurrentSupport::try_from(v).is_err(),
+                    "raw={v} should be invalid"
+                );
+            }
+        }
+    }
+
+    mod maximum_vbus_voltage {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, MaximumVbusVoltage); 4] = [
+                (0b00, MaximumVbusVoltage::TwentyVolts),
+                (0b01, MaximumVbusVoltage::ThirtyVolts),
+                (0b10, MaximumVbusVoltage::FortyVolts),
+                (0b11, MaximumVbusVoltage::FiftyVolts),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(MaximumVbusVoltage::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 4..=255u8 {
+                assert!(MaximumVbusVoltage::try_from(v).is_err(), "raw={v} should be invalid");
+            }
+        }
+    }
+}

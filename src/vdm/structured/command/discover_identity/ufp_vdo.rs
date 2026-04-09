@@ -246,3 +246,63 @@ impl From<u8> for DeviceCapability {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod usb_highest_speed {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, UsbHighestSpeed); 5] = [
+                (0b000, UsbHighestSpeed::Usb2p0),
+                (0b001, UsbHighestSpeed::Usb3p2Gen1),
+                (0b010, UsbHighestSpeed::Usb3p2Gen2),
+                (0b011, UsbHighestSpeed::Usb4Gen3),
+                (0b100, UsbHighestSpeed::Usb4Gen4),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(UsbHighestSpeed::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 5..=255u8 {
+                assert!(
+                    UsbHighestSpeed::try_from(v).is_err(),
+                    "raw={v} should be invalid"
+                );
+            }
+        }
+    }
+
+    mod vconn_power {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, VconnPower); 7] = [
+                (0b000, VconnPower::OneW),
+                (0b001, VconnPower::OnePointFiveW),
+                (0b010, VconnPower::TwoW),
+                (0b011, VconnPower::ThreeW),
+                (0b100, VconnPower::FourW),
+                (0b101, VconnPower::FiveW),
+                (0b110, VconnPower::SixW),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(VconnPower::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 7..=255u8 {
+                assert!(VconnPower::try_from(v).is_err(), "raw={v} should be invalid");
+            }
+        }
+    }
+}

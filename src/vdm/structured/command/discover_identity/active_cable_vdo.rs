@@ -781,3 +781,346 @@ impl TryFrom<u8> for U3CldPower {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod usb_highest_speed {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, UsbHighestSpeed); 5] = [
+                (0b000, UsbHighestSpeed::Usb2p0),
+                (0b001, UsbHighestSpeed::Usb3p2Gen1),
+                (0b010, UsbHighestSpeed::Usb3p2),
+                (0b011, UsbHighestSpeed::Usb4Gen3),
+                (0b100, UsbHighestSpeed::Usb4Gen4),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(UsbHighestSpeed::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 5..=255u8 {
+                assert!(
+                    UsbHighestSpeed::try_from(v).is_err(),
+                    "raw={v} should be invalid"
+                );
+            }
+        }
+    }
+
+    mod vbus_current_handling_capability {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, VbusCurrentHandlingCapability); 2] = [
+                (0b01, VbusCurrentHandlingCapability::ThreeAmps),
+                (0b10, VbusCurrentHandlingCapability::FiveAmps),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(
+                    VbusCurrentHandlingCapability::try_from(raw),
+                    Ok(expected),
+                    "raw={raw}"
+                );
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in [0u8, 3] {
+                assert!(
+                    VbusCurrentHandlingCapability::try_from(v).is_err(),
+                    "raw={v} should be invalid"
+                );
+            }
+        }
+    }
+
+    mod sbu_type {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, SbuType); 2] = [(0, SbuType::Passive), (1, SbuType::Active)];
+            for (raw, expected) in cases {
+                assert_eq!(SbuType::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 2..=255u8 {
+                assert!(SbuType::try_from(v).is_err(), "raw={v} should be invalid");
+            }
+        }
+    }
+
+    mod maximum_vbus_voltage {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, MaximumVbusVoltage); 4] = [
+                (0b00, MaximumVbusVoltage::TwentyV),
+                (0b01, MaximumVbusVoltage::ThirtyV),
+                (0b10, MaximumVbusVoltage::FortyV),
+                (0b11, MaximumVbusVoltage::FiftyV),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(MaximumVbusVoltage::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 4..=255u8 {
+                assert!(
+                    MaximumVbusVoltage::try_from(v).is_err(),
+                    "raw={v} should be invalid"
+                );
+            }
+        }
+    }
+
+    mod cable_termination_type {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, CableTerminationType); 2] = [
+                (0b10, CableTerminationType::OneEndActive),
+                (0b11, CableTerminationType::BothEndsActive),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(
+                    CableTerminationType::try_from(raw),
+                    Ok(expected),
+                    "raw={raw}"
+                );
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in [0u8, 1] {
+                assert!(
+                    CableTerminationType::try_from(v).is_err(),
+                    "raw={v} should be invalid"
+                );
+            }
+        }
+    }
+
+    mod cable_latency {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, CableLatency); 10] = [
+                (0b0001, CableLatency::LessThan10ns),
+                (0b0010, CableLatency::LessThan20ns),
+                (0b0011, CableLatency::LessThan30ns),
+                (0b0100, CableLatency::LessThan40ns),
+                (0b0101, CableLatency::LessThan50ns),
+                (0b0110, CableLatency::LessThan60ns),
+                (0b0111, CableLatency::LessThan70ns),
+                (0b1000, CableLatency::LessThan1000ns),
+                (0b1001, CableLatency::LessThan2000ns),
+                (0b1010, CableLatency::LessThan3000ns),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(CableLatency::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            assert!(CableLatency::try_from(0u8).is_err());
+            for v in 11..=255u8 {
+                assert!(
+                    CableLatency::try_from(v).is_err(),
+                    "raw={v} should be invalid"
+                );
+            }
+        }
+    }
+
+    mod usb_type_c_or_captive {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, UsbTypeCOrCaptive); 2] = [
+                (0b10, UsbTypeCOrCaptive::UsbTypeC),
+                (0b11, UsbTypeCOrCaptive::Captive),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(UsbTypeCOrCaptive::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in [0u8, 1] {
+                assert!(
+                    UsbTypeCOrCaptive::try_from(v).is_err(),
+                    "raw={v} should be invalid"
+                );
+            }
+        }
+    }
+
+    mod usb_gen {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, UsbGen); 2] = [(0, UsbGen::Gen1), (1, UsbGen::Gen2OrHigher)];
+            for (raw, expected) in cases {
+                assert_eq!(UsbGen::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 2..=255u8 {
+                assert!(UsbGen::try_from(v).is_err(), "raw={v} should be invalid");
+            }
+        }
+    }
+
+    mod usb_lanes_supported {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, UsbLanesSupported); 2] =
+                [(0, UsbLanesSupported::OneLane), (1, UsbLanesSupported::TwoLanes)];
+            for (raw, expected) in cases {
+                assert_eq!(UsbLanesSupported::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 2..=255u8 {
+                assert!(
+                    UsbLanesSupported::try_from(v).is_err(),
+                    "raw={v} should be invalid"
+                );
+            }
+        }
+    }
+
+    mod active_element {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, ActiveElement); 2] =
+                [(0, ActiveElement::Redriver), (1, ActiveElement::Retimer)];
+            for (raw, expected) in cases {
+                assert_eq!(ActiveElement::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 2..=255u8 {
+                assert!(
+                    ActiveElement::try_from(v).is_err(),
+                    "raw={v} should be invalid"
+                );
+            }
+        }
+    }
+
+    mod physical_connection {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, PhysicalConnection); 2] =
+                [(0, PhysicalConnection::Copper), (1, PhysicalConnection::Optical)];
+            for (raw, expected) in cases {
+                assert_eq!(PhysicalConnection::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 2..=255u8 {
+                assert!(
+                    PhysicalConnection::try_from(v).is_err(),
+                    "raw={v} should be invalid"
+                );
+            }
+        }
+    }
+
+    mod u3_to_u0_transition_mode {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, U3ToU0TransitionMode); 2] = [
+                (0, U3ToU0TransitionMode::Direct),
+                (1, U3ToU0TransitionMode::ThroughU3S),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(
+                    U3ToU0TransitionMode::try_from(raw),
+                    Ok(expected),
+                    "raw={raw}"
+                );
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 2..=255u8 {
+                assert!(
+                    U3ToU0TransitionMode::try_from(v).is_err(),
+                    "raw={v} should be invalid"
+                );
+            }
+        }
+    }
+
+    mod u3_cld_power {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, U3CldPower); 7] = [
+                (0b000, U3CldPower::GreaterThan10Milliwatts),
+                (0b001, U3CldPower::FiveToTenMilliwatts),
+                (0b010, U3CldPower::OneToFiveMilliwatts),
+                (0b011, U3CldPower::P5To1Milliwatt),
+                (0b100, U3CldPower::P2ToP5Milliwatt),
+                (0b101, U3CldPower::FiftyToTwoHundredMicrowatts),
+                (0b110, U3CldPower::LessThanFiftyMicrowatts),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(U3CldPower::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 7..=255u8 {
+                assert!(
+                    U3CldPower::try_from(v).is_err(),
+                    "raw={v} should be invalid"
+                );
+            }
+        }
+    }
+}

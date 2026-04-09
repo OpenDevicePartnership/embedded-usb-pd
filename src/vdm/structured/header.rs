@@ -123,3 +123,68 @@ impl TryFrom<[u8; 4]> for Header {
         u32::from_le_bytes(bytes).try_into()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod command {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, Command); 7] = [
+                (1, Command::DiscoverIdentity),
+                (2, Command::DiscoverSvids),
+                (3, Command::DiscoverModes),
+                (4, Command::EnterMode),
+                (5, Command::ExitMode),
+                (6, Command::Attention),
+                (16, Command::SvidSpecific(16)),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(Command::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn svid_specific_upper_range() {
+            for v in [16u8, 17, 31, 127, 255] {
+                assert_eq!(Command::try_from(v), Ok(Command::SvidSpecific(v)));
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            // 0 and 7..=15 are invalid
+            assert!(Command::try_from(0u8).is_err());
+            for v in 7..=15u8 {
+                assert!(Command::try_from(v).is_err(), "raw={v} should be invalid");
+            }
+        }
+    }
+
+    mod command_type {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, CommandType); 4] = [
+                (0, CommandType::Request),
+                (1, CommandType::Ack),
+                (2, CommandType::Nak),
+                (3, CommandType::Busy),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(CommandType::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 4..=255u8 {
+                assert!(CommandType::try_from(v).is_err(), "raw={v} should be invalid");
+            }
+        }
+    }
+}

@@ -355,3 +355,155 @@ impl TryFrom<u8> for UsbTypeCPlugOrCaptive {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    mod usb_highest_speed {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, UsbHighestSpeed); 5] = [
+                (0b000, UsbHighestSpeed::Usb2p0),
+                (0b001, UsbHighestSpeed::Usb3p2Gen1),
+                (0b010, UsbHighestSpeed::Usb3p2),
+                (0b011, UsbHighestSpeed::Usb4Gen3),
+                (0b100, UsbHighestSpeed::Usb4Gen4),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(UsbHighestSpeed::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 5..=255u8 {
+                assert!(UsbHighestSpeed::try_from(v).is_err(), "raw={v} should be invalid");
+            }
+        }
+    }
+
+    mod vbus_current_handling_capability {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, VbusCurrentHandlingCapability); 2] = [
+                (0b01, VbusCurrentHandlingCapability::ThreeAmps),
+                (0b10, VbusCurrentHandlingCapability::FiveAmps),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(VbusCurrentHandlingCapability::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in [0u8, 3] {
+                assert!(
+                    VbusCurrentHandlingCapability::try_from(v).is_err(),
+                    "raw={v} should be invalid"
+                );
+            }
+        }
+    }
+
+    mod maximum_vbus_voltage {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, MaximumVbusVoltage); 4] = [
+                (0b00, MaximumVbusVoltage::TwentyVolt),
+                (0b01, MaximumVbusVoltage::ThirtyVolt),
+                (0b10, MaximumVbusVoltage::FortyVolt),
+                (0b11, MaximumVbusVoltage::FiftyVolt),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(MaximumVbusVoltage::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 4..=255u8 {
+                assert!(MaximumVbusVoltage::try_from(v).is_err(), "raw={v} should be invalid");
+            }
+        }
+    }
+
+    mod cable_termination_type {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, CableTerminationType); 2] = [
+                (0b00, CableTerminationType::VconnNotRequired),
+                (0b01, CableTerminationType::VconnRequired),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(CableTerminationType::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in 2..=255u8 {
+                assert!(CableTerminationType::try_from(v).is_err(), "raw={v} should be invalid");
+            }
+        }
+    }
+
+    mod cable_latency {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, CableLatency); 8] = [
+                (0b0001, CableLatency::LessThan10ns),
+                (0b0010, CableLatency::LessThan20ns),
+                (0b0011, CableLatency::LessThan30ns),
+                (0b0100, CableLatency::LessThan40ns),
+                (0b0101, CableLatency::LessThan50ns),
+                (0b0110, CableLatency::LessThan60ns),
+                (0b0111, CableLatency::LessThan70ns),
+                (0b1000, CableLatency::GreaterThan70ns),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(CableLatency::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            assert!(CableLatency::try_from(0u8).is_err());
+            for v in 9..=255u8 {
+                assert!(CableLatency::try_from(v).is_err(), "raw={v} should be invalid");
+            }
+        }
+    }
+
+    mod usb_type_c_plug_or_captive {
+        use super::*;
+
+        #[test]
+        fn all_valid_variants() {
+            let cases: [(u8, UsbTypeCPlugOrCaptive); 2] = [
+                (0b10, UsbTypeCPlugOrCaptive::UsbTypeC),
+                (0b11, UsbTypeCPlugOrCaptive::Captive),
+            ];
+            for (raw, expected) in cases {
+                assert_eq!(UsbTypeCPlugOrCaptive::try_from(raw), Ok(expected), "raw={raw}");
+            }
+        }
+
+        #[test]
+        fn invalid_values() {
+            for v in [0u8, 1] {
+                assert!(UsbTypeCPlugOrCaptive::try_from(v).is_err(), "raw={v} should be invalid");
+            }
+        }
+    }
+}
