@@ -1,23 +1,18 @@
-//! [`Response`] contains the response to a Discover Identity Command targetting SOP'.
+//! [`ResponseVdos`] contains the response VDOs to a Discover Identity Command targetting SOP'.
 
 use super::{CertStatVdo, ProductVdo};
-use crate::vdm::structured::{command::discover_identity::ProductTypeVdo, Header};
+use crate::vdm::structured::command::discover_identity::ProductTypeVdo;
 
 pub mod id_header_vdo;
 
 pub use id_header_vdo::IdHeaderVdo;
 
-/// The response to a Discover Identity Command using `SOP'`.
-///
-/// Each response contains up to 7 VDOs. The first three
+/// The response VDOs to a Discover Identity Command using `SOP'`.
 ///
 /// See PD spec 6.4.4.3.1 Discover Identity, table 6.16 Discover Identity Command response.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Response {
-    /// The header for this Structured VDM Message.
-    pub header: Header,
-
+pub struct ResponseVdos {
     /// Information corresponding to the Product.
     pub id: IdHeaderVdo,
 
