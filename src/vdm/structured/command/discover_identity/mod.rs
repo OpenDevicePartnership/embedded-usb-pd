@@ -29,6 +29,18 @@ pub enum ConnectorType {
     Plug,
 }
 
+impl TryFrom<u8> for ConnectorType {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0b10 => Ok(Self::Receptacle),
+            0b11 => Ok(Self::Plug),
+            _ => Err(()),
+        }
+    }
+}
+
 /// Contains the XID assigned by USB-IF to the product before certification in binary format.
 ///
 /// See PD spec 6.4.4.3.1.2 Cert Stat VDO, table 6.37 Cert Stat VDO.
