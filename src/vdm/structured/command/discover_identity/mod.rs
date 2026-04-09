@@ -5,6 +5,7 @@
 pub mod active_cable_vdo;
 pub mod dfp_vdo;
 pub mod passive_cable_vdo;
+pub mod product_vdo;
 pub mod sop;
 pub mod sop_prime;
 pub mod ufp_vdo;
@@ -13,6 +14,7 @@ pub mod vpd_vdo;
 pub use active_cable_vdo::{ActiveCableVdo1, ActiveCableVdo2};
 pub use dfp_vdo::DfpVdo;
 pub use passive_cable_vdo::PassiveCableVdo;
+pub use product_vdo::ProductVdo;
 pub use ufp_vdo::UfpVdo;
 pub use vpd_vdo::VpdVdo;
 
@@ -47,20 +49,6 @@ impl TryFrom<u8> for ConnectorType {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CertStatVdo(pub u32);
-
-/// The Product VDO contains identity information relating to the product.
-///
-/// See PD spec 6.4.4.3.1.3 Product VDO, table 6.38 Product VDO.
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct ProductVdo {
-    /// The USB Product ID, as defined by the USB 2.0 / USB 3.2 specifications.
-    pub usb_product_id: u16,
-
-    /// The USB Device Release Number, as defined by the USB 2.0 / USB 3.2 specifications.
-    pub bcd_device: u16,
-}
 
 /// An unspecified Product Type VDO in the Product Type VDO(s) of the Discover
 /// Identity Command response.
