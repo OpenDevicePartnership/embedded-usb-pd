@@ -48,21 +48,21 @@ impl TryFrom<u8> for Command {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum CommandType {
-    Request,
-    Ack,
-    Nak,
-    Busy,
+    Request = 0b00,
+    Ack = 0b01,
+    Nak = 0b10,
+    Busy = 0b11,
 }
 
-impl TryFrom<u8> for CommandType {
-    type Error = ();
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0 => Ok(Self::Request),
-            1 => Ok(Self::Ack),
-            2 => Ok(Self::Nak),
-            3 => Ok(Self::Busy),
-            _ => Err(()),
+impl From<u8> for CommandType {
+    fn from(value: u8) -> Self {
+        match value & 0b11 {
+            0b00 => Self::Request,
+            0b01 => Self::Ack,
+            0b10 => Self::Nak,
+            // technically >0b11 is unreachable since we masked with 0b11, but we'll
+            // treat any cosmic rays as a Busy response to make this From, not TryFrom
+            0b11 | _ => Self::Busy,
         }
     }
 }
@@ -91,7 +91,6 @@ bitfield::bitfield! {
 
 pub enum ParseError {
     InvalidCommand,
-    InvalidCommandType,
 }
 
 impl TryFrom<Raw> for Header {
@@ -99,10 +98,7 @@ impl TryFrom<Raw> for Header {
     fn try_from(raw: Raw) -> Result<Self, Self::Error> {
         Ok(Self {
             command: raw.command().try_into().map_err(|()| ParseError::InvalidCommand)?,
-            command_type: raw
-                .command_type()
-                .try_into()
-                .map_err(|()| ParseError::InvalidCommandType)?,
+            command_type: raw.command_type().into(),
             object_position: ObjectPosition(raw.object_position()),
             structured_vdm_version: StructuredVdmVersion(raw.structured_vdm_version()),
             svid: Svid(raw.svid()),
@@ -176,14 +172,27 @@ mod tests {
                 (3, CommandType::Busy),
             ];
             for (raw, expected) in cases {
-                assert_eq!(CommandType::try_from(raw), Ok(expected), "raw={raw}");
+                assert_eq!(CommandType::from(raw), expected, "raw={raw}");
             }
         }
 
         #[test]
         fn invalid_values() {
-            for v in 4..=255u8 {
-                assert!(CommandType::try_from(v).is_err(), "raw={v} should be invalid");
+            // since the value is masked with 0b11, all values >0b11 are technically invalid but actually unreachable
+            // assert that we loop in order rather than panic
+            let expected = [
+                CommandType::Request,
+                CommandType::Ack,
+                CommandType::Nak,
+                CommandType::Busy,
+            ];
+
+            for (raw, expected) in (4..=255u8).zip(expected.iter().cycle().copied()) {
+                assert_eq!(
+                    CommandType::from(raw),
+                    expected,
+                    "raw={raw} should parse as {expected:?}"
+                );
             }
         }
     }
