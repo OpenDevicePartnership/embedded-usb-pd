@@ -138,9 +138,9 @@ impl TryFrom<u8> for ProductType {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0b000 => Ok(Self::NotACablePlugVpd),
-            0b001 => Ok(Self::PassiveCable),
-            0b010 => Ok(Self::ActiveCable),
-            0b011 => Ok(Self::Vpd),
+            0b011 => Ok(Self::PassiveCable),
+            0b100 => Ok(Self::ActiveCable),
+            0b110 => Ok(Self::Vpd),
             _ => Err(()),
         }
     }
@@ -157,9 +157,9 @@ mod tests {
         fn all_valid_variants() {
             let cases: [(u8, ProductType); 4] = [
                 (0b000, ProductType::NotACablePlugVpd),
-                (0b001, ProductType::PassiveCable),
-                (0b010, ProductType::ActiveCable),
-                (0b011, ProductType::Vpd),
+                (0b011, ProductType::PassiveCable),
+                (0b100, ProductType::ActiveCable),
+                (0b110, ProductType::Vpd),
             ];
             for (raw, expected) in cases {
                 assert_eq!(ProductType::try_from(raw), Ok(expected), "raw={raw}");
@@ -168,7 +168,7 @@ mod tests {
 
         #[test]
         fn invalid_values() {
-            for v in [0b100, 0b101, 0b110, 0b111] {
+            for v in [0b001, 0b010, 0b101, 0b111] {
                 assert!(ProductType::try_from(v).is_err(), "raw={v} should be invalid");
             }
         }
