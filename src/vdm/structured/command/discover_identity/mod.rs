@@ -4,6 +4,7 @@
 
 pub mod active_cable_vdo;
 pub mod dfp_vdo;
+pub mod id_header_vdo;
 pub mod passive_cable_vdo;
 pub mod product_vdo;
 pub mod sop;
@@ -13,6 +14,7 @@ pub mod vpd_vdo;
 
 pub use active_cable_vdo::{ActiveCableVdo1, ActiveCableVdo2};
 pub use dfp_vdo::DfpVdo;
+pub use id_header_vdo::IdHeaderVdo;
 pub use passive_cable_vdo::PassiveCableVdo;
 pub use product_vdo::ProductVdo;
 pub use ufp_vdo::UfpVdo;

@@ -2,7 +2,14 @@ use crate::vdm::structured::command::discover_identity::ConnectorType;
 
 /// The ID Header VDO contains information corresponding to the Power Delivery Product.
 ///
+/// This type differs from [`crate::vdm::structured::command::discover_identity::IdHeaderVdo`]
+/// in that it contains the product type fields, which are encoded into the [`ResponseVdos::dfp_product_type_vdos`]
+/// and [`ResponseVdos::ufp_product_type_vdos`] fields. This type is meant to be parsed directly from the raw VDO.
+///
 /// See PD spec 6.4.4.3.1.1 ID Header VDO, table 6.3.3 ID Header VDO.
+///
+/// [`ResponseVdos::dfp_product_type_vdos`]: super::ResponseVdos::dfp_product_type_vdos
+/// [`ResponseVdos::ufp_product_type_vdos`]: super::ResponseVdos::ufp_product_type_vdos
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct IdHeaderVdo {
@@ -15,7 +22,9 @@ pub struct IdHeaderVdo {
     /// Indicates the type of Product when in DFP Data Role, whether a VDO will be
     /// returned, and if so, the type of VDO to be returned.
     ///
-    /// The value of this type changes how [`Response::product_type_vdos`] is interpreted.
+    /// The value of this type changes how [`ResponseVdos::dfp_product_type_vdos`] is interpreted.
+    ///
+    /// [`ResponseVdos::dfp_product_type_vdos`]: super::ResponseVdos::dfp_product_type_vdos
     pub product_type_dfp: ProductTypeDfp,
 
     /// Indicates whether or not the Product (either a Cable Plug or a device that
@@ -25,7 +34,9 @@ pub struct IdHeaderVdo {
     /// Indicates the type of Product when in UFP Data Role, whether a VDO will be
     /// returned, and if so, the type of VDO to be returned.
     ///
-    /// The value of this type changes how [`Response::product_type_vdos`] is interpreted.
+    /// The value of this type changes how [`ResponseVdos::ufp_product_type_vdos`] is interpreted.
+    ///
+    /// [`ResponseVdos::ufp_product_type_vdos`]: super::ResponseVdos::ufp_product_type_vdos
     pub product_type_ufp: ProductTypeUfp,
 
     /// Whether or not the Port has a USB Device Capability.
@@ -114,6 +125,18 @@ impl TryFrom<[u8; 4]> for IdHeaderVdo {
     }
 }
 
+impl From<IdHeaderVdo> for crate::vdm::structured::command::discover_identity::IdHeaderVdo {
+    fn from(value: IdHeaderVdo) -> Self {
+        Self {
+            usb_vendor_id: value.usb_vendor_id,
+            connector_type: value.connector_type,
+            modal_operation_supported: value.modal_operation_supported,
+            usb_communication_capable_as_usb_device: value.usb_communication_capable_as_usb_device,
+            usb_communication_capable_as_usb_host: value.usb_communication_capable_as_usb_host,
+        }
+    }
+}
+
 /// The [`IdHeaderVdo::product_type_dfp`] field indicates the type of Product when
 /// in DFP Data Role, whether a VDO will be returned, and if so, the type of VDO
 /// to be returned.
@@ -124,15 +147,15 @@ impl TryFrom<[u8; 4]> for IdHeaderVdo {
 pub enum ProductTypeDfp {
     /// This is not a DFP.
     ///
-    /// [`Response::product_type_vdos`] is empty.
+    /// The Product Type VDOs is empty.
     NotADfp,
 
     /// The product is a PDUSB Hub.
     ///
-    /// If the device is not a Dual-Role Device, the first item in [`Response::product_type_vdos`]
-    /// is a [`DfpVdo`][`super::DfpVdo`].
+    /// If the device is not a Dual-Role Device, the first item in the Product Type
+    /// VDOs is a [`DfpVdo`][`super::DfpVdo`].
     ///
-    /// If the device is a Dual-Role Device, the first item in [`Response::product_type_vdos`]
+    /// If the device is a Dual-Role Device, the first item in the Product Type VDOs
     /// is defined by [`IdHeaderVdo::product_type_ufp`], the second is padding (all 0s),
     /// and the third item is a [`DfpVdo`][`super::DfpVdo`].
     Hub,
@@ -140,20 +163,20 @@ pub enum ProductTypeDfp {
     /// The product is a PDUSB Host or a PDUSB host that supports one or more Alternate
     /// Modes as an AMC.
     ///
-    /// If the device is not a Dual-Role Device, the first item in [`Response::product_type_vdos`]
-    /// is a [`DfpVdo`][`super::DfpVdo`].
+    /// If the device is not a Dual-Role Device, the first item in the Product Type
+    /// VDOs is a [`DfpVdo`][`super::DfpVdo`].
     ///
-    /// If the device is a Dual-Role Device, the first item in [`Response::product_type_vdos`]
+    /// If the device is a Dual-Role Device, the first item in the Product Type VDOs
     /// is defined by [`IdHeaderVdo::product_type_ufp`], the second is padding (all 0s),
     /// and the third item is a [`DfpVdo`][`super::DfpVdo`].
     Host,
 
     /// The product is a charger / power brick.
     ///
-    /// If the device is not a Dual-Role Device, the first item in [`Response::product_type_vdos`]
-    /// is a [`DfpVdo`][`super::DfpVdo`].
+    /// If the device is not a Dual-Role Device, the first item in the Product Type
+    /// VDOs is a [`DfpVdo`][`super::DfpVdo`].
     ///
-    /// If the device is a Dual-Role Device, the first item in [`Response::product_type_vdos`]
+    /// If the device is a Dual-Role Device, the first item in the Product Type VDOs
     /// is defined by [`IdHeaderVdo::product_type_ufp`], the second is padding (all 0s),
     /// and the third item is a [`DfpVdo`][`super::DfpVdo`].
     Charger,
@@ -183,22 +206,22 @@ impl TryFrom<u8> for ProductTypeDfp {
 pub enum ProductTypeUfp {
     /// This is not a UFP.
     ///
-    /// [`Response::product_type_vdos`] is empty.
+    /// The Product Type VDOs is empty.
     NotAUfp,
 
     /// The product is a PDUSB Hub.
     ///
-    /// The first item in [`Response::product_type_vdos`] is a [`UfpVdo`][`super::UfpVdo`].
+    /// The first item in the Product Type VDOs is a [`UfpVdo`][`super::UfpVdo`].
     Hub,
 
     /// The product is a PDUSB Device other than a Hub.
     ///
-    /// The first item in [`Response::product_type_vdos`] is a [`UfpVdo`][`super::UfpVdo`].
+    /// The first item in the Product Type VDOs is a [`UfpVdo`][`super::UfpVdo`].
     Peripheral,
 
     /// The product is a PSD, e.g., power bank.
     ///
-    /// [`Response::product_type_vdos`] is empty.
+    /// The Product Type VDOs is empty.
     Psd,
 }
 

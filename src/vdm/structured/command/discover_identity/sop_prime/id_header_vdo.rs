@@ -2,7 +2,13 @@ use crate::vdm::structured::command::discover_identity::ConnectorType;
 
 /// The ID Header VDO contains information corresponding to the Power Delivery Product.
 ///
+/// This type differs from [`crate::vdm::structured::command::discover_identity::IdHeaderVdo`]
+/// in that it contains the product type fields, which are encoded into the [`ResponseVdos::product_type_vdos`]
+/// field. This type is meant to be parsed directly from the raw VDO.
+///
 /// See PD spec 6.4.4.3.1.1 ID Header VDO, table 6.3.3 ID Header VDO.
+///
+/// [`ResponseVdos::product_type_vdos`]: super::ResponseVdos::product_type_vdos
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct IdHeaderVdo {
@@ -19,7 +25,9 @@ pub struct IdHeaderVdo {
     /// Indicates the type of Product when the Product is a Cable Plug or VPD, whether
     /// a VDO will be returned, and if so, the type of VDO to be returned.
     ///
-    /// The value of this type changes how [`Response::product_type_vdos`] is interpreted.
+    /// The value of this type changes how [`ResponseVdos::product_type_vdos`] is interpreted.
+    ///
+    /// [`ResponseVdos::product_type_vdos`]: super::ResponseVdos::product_type_vdos
     pub product_type: ProductType,
 
     /// Whether or not the Port has a USB Device Capability.
@@ -100,11 +108,21 @@ impl TryFrom<[u8; 4]> for IdHeaderVdo {
     }
 }
 
+impl From<IdHeaderVdo> for crate::vdm::structured::command::discover_identity::IdHeaderVdo {
+    fn from(id_header_vdo: IdHeaderVdo) -> Self {
+        Self {
+            usb_vendor_id: id_header_vdo.usb_vendor_id,
+            connector_type: id_header_vdo.connector_type,
+            modal_operation_supported: id_header_vdo.modal_operation_supported,
+            usb_communication_capable_as_usb_device: id_header_vdo.usb_communication_capable_as_usb_device,
+            usb_communication_capable_as_usb_host: id_header_vdo.usb_communication_capable_as_usb_host,
+        }
+    }
+}
+
 /// The `SOP'` Product Type (Cable Plug/VPD) field indicates the type of Product
 /// when the Product is a Cable Plug or VPD, whether a VDO will be returned, and
 /// if so, the type of VDO to be returned.
-///
-/// The type changes how [`Response::product_type_vdos`] is interpreted.
 ///
 /// See PD spec 6.4.4.3.1.1.4 Product Type (Cable Plug), table 6.35 Product Types (Cable Plug/VPD).
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

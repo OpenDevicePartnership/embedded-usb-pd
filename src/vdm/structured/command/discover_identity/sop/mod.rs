@@ -1,6 +1,6 @@
 //! [`ResponseVdos`] contains the response VDOs to a Discover Identity Command targetting SOP.
 
-use crate::vdm::structured::command::discover_identity::{CertStatVdo, ProductTypeVdo, ProductVdo};
+use crate::vdm::structured::command::discover_identity::{CertStatVdo, DfpVdo, ProductVdo, UfpVdo};
 
 pub mod id_header_vdo;
 
@@ -13,16 +13,61 @@ pub use id_header_vdo::IdHeaderVdo;
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ResponseVdos {
     /// Information corresponding to the Product.
-    pub id: IdHeaderVdo,
+    ///
+    /// To get an SOP-specific ID Header VDO, use the [`Into`] implementations on
+    /// this field.
+    pub id: crate::vdm::structured::command::discover_identity::IdHeaderVdo,
 
     /// The XID assigned by the USB-IF to the product.
-    pub cert_stat: Option<CertStatVdo>,
+    pub cert_stat: CertStatVdo,
 
     /// Identity information relating to the product.
-    pub product: Option<ProductVdo>,
+    pub product: ProductVdo,
 
-    /// The Product-specific VDOs.
+    /// The Product-specific DFP VDOs.
     ///
-    /// The types of these VDOs are determined by fields in the [`Self::id`] field.
-    pub product_type_vdos: [ProductTypeVdo; 3],
+    /// These are determined by the [`IdHeaderVdo::product_type_dfp`] field during
+    /// parsing.
+    pub dfp_product_type_vdos: DfpProductTypeVdos,
+
+    /// The Product-specific UFP VDOs.
+    ///
+    /// These are determined by the [`IdHeaderVdo::product_type_ufp`] field during
+    /// parsing.
+    pub ufp_product_type_vdos: UfpProductTypeVdos,
+}
+
+/// The Product Type DFP VDOs, parsed based on [`IdHeaderVdo::product_type_dfp`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum DfpProductTypeVdos {
+    /// This is not a DFP.
+    NotADfp,
+
+    /// The product is a PDUSB Hub.
+    Hub(DfpVdo),
+
+    /// The product is a PDUSB Host or a PDUSB host that supports one or more Alternate
+    /// Modes as an AMC.
+    Host(DfpVdo),
+
+    /// The product is a charger / power brick.
+    Charger(DfpVdo),
+}
+
+/// The Product Type UFP VDOs, parsed based on [`IdHeaderVdo::product_type_ufp`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum UfpProductTypeVdos {
+    /// This is not a UFP.
+    NotAUfp,
+
+    /// The product is a PDUSB Hub.
+    Hub(UfpVdo),
+
+    /// The product is a PDUSB Device other than a Hub.
+    Peripheral(UfpVdo),
+
+    /// The product is a PSD, e.g., power bank.
+    Psd,
 }
