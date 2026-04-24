@@ -271,10 +271,7 @@ mod tests {
         #[test]
         fn invalid_values() {
             for v in 5..=255u8 {
-                assert!(
-                    UsbHighestSpeed::try_from(v).is_err(),
-                    "raw={v} should be invalid"
-                );
+                assert!(UsbHighestSpeed::try_from(v).is_err(), "raw={v} should be invalid");
             }
         }
     }
