@@ -1,6 +1,5 @@
-use crate::vdm::structured::command::discover_identity::ConnectorType;
-
 use super::ProductTypeVdos;
+use crate::vdm::structured::command::discover_identity::ConnectorType;
 
 /// The ID Header VDO contains information corresponding to the Power Delivery Product.
 ///

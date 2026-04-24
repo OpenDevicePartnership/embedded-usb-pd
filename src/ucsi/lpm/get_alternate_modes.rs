@@ -9,7 +9,8 @@ use bitfield::bitfield;
 use super::Recipient;
 use crate::ucsi::lpm::InvalidRecipient;
 use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
-use crate::vdm::{structured::Svid, AltModeId};
+use crate::vdm::structured::Svid;
+use crate::vdm::AltModeId;
 
 /// Data length for the GET_ALTERNATE_MODES command response
 pub const RESPONSE_DATA_LEN: usize = 12;
