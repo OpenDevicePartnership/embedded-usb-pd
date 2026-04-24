@@ -1,4 +1,4 @@
-//! [`ResponseVdos`] contains the response VDOs to a Discover Identity Command targetting SOP.
+//! [`ResponseVdos`] contains the response VDOs to a Discover Identity Command targeting SOP.
 
 use crate::vdm::structured::command::discover_identity::{CertStatVdo, DfpVdo, ProductVdo, UfpVdo};
 

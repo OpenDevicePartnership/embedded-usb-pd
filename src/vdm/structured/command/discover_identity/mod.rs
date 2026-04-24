@@ -55,7 +55,7 @@ pub struct CertStatVdo(pub u32);
 /// An unspecified Product Type VDO in the Product Type VDO(s) of the Discover
 /// Identity Command response.
 ///
-/// The type of this VDO is determined by the ID Header VDO and whether targetting
+/// The type of this VDO is determined by the ID Header VDO and whether targeting
 /// SOP or SOP'.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
