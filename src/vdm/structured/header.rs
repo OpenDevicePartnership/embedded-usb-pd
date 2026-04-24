@@ -87,7 +87,7 @@ bitfield::bitfield! {
     pub u8, command_type, set_command_type: 7, 6;
     pub u8, object_position, set_object_position: 10, 8;
     pub u8, structured_vdm_version, set_structured_vdm_version: 14, 11;
-    pub u16, svid, set_svid: 30, 16;
+    pub u16, svid, set_svid: 31, 16;
 }
 
 pub enum ParseError {
