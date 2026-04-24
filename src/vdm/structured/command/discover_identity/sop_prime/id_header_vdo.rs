@@ -130,23 +130,31 @@ impl From<IdHeaderVdo> for crate::vdm::structured::command::discover_identity::I
 pub enum ProductType {
     /// No other Product Type is appropriate.
     ///
-    /// [`Response::product_type_vdos`] is empty.
+    /// [`ResponseVdos::product_type_vdos`] is empty.
+    ///
+    /// [`ResponseVdos::product_type_vdos`]: super::ResponseVdos::product_type_vdos
     NotACablePlugVpd,
 
     /// The Product is a cable that does not incorporate signal conditioning circuits.
     ///
-    /// The first item in [`Response::product_type_vdos`] is a [`PassiveCableVdo`][`super::PassiveCableVdo`].
+    /// The first item in [`ResponseVdos::product_type_vdos`] is a [`PassiveCableVdo`][`super::PassiveCableVdo`].
+    ///
+    /// [`ResponseVdos::product_type_vdos`]: super::ResponseVdos::product_type_vdos
     PassiveCable,
 
     /// The Product is a cable that incorporates signal conditioning circuits.
     ///
-    /// The first item in [`Response::product_type_vdos`] is a [`ActiveCableVdo1`][`super::ActiveCableVdo1`].
+    /// The first item in [`ResponseVdos::product_type_vdos`] is a [`ActiveCableVdo1`][`super::ActiveCableVdo1`].
     /// The second item is a [`ActiveCableVdo2`][`super::ActiveCableVdo2`].
+    ///
+    /// [`ResponseVdos::product_type_vdos`]: super::ResponseVdos::product_type_vdos
     ActiveCable,
 
     /// The Product is a `VCONN`-powered USB device.
     ///
-    /// The first item in [`Response::product_type_vdos`] is a [`VpdVdo`][`super::VpdVdo`].
+    /// The first item in [`ResponseVdos::product_type_vdos`] is a [`VpdVdo`][`super::VpdVdo`].
+    ///
+    /// [`ResponseVdos::product_type_vdos`]: super::ResponseVdos::product_type_vdos
     Vpd,
 }
 

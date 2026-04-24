@@ -1,4 +1,4 @@
-//! [`Header]` defines the VDM Header for a Structured VDM Message.
+//! [`Header`] defines the VDM Header for a Structured VDM Message.
 
 use crate::vdm::structured::Svid;
 
