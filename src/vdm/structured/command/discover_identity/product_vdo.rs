@@ -2,6 +2,8 @@
 //!
 //! See PD spec 6.4.4.3.1.3 Product VDO, table 6.38 Product VDO.
 
+use crate::usb::{Bcd, ProductId};
+
 /// The Product VDO contains identity information relating to the product.
 ///
 /// See PD spec 6.4.4.3.1.3 Product VDO, table 6.38 Product VDO.
@@ -9,10 +11,10 @@
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ProductVdo {
     /// The USB Product ID, as defined by the USB 2.0 / USB 3.2 specifications.
-    pub usb_product_id: u16,
+    pub usb_product_id: ProductId,
 
     /// The USB Device Release Number, as defined by the USB 2.0 / USB 3.2 specifications.
-    pub bcd_device: u16,
+    pub bcd_device: Bcd,
 }
 
 bitfield::bitfield! {
@@ -32,8 +34,8 @@ bitfield::bitfield! {
 impl From<Raw> for ProductVdo {
     fn from(raw: Raw) -> Self {
         Self {
-            usb_product_id: raw.usb_product_id(),
-            bcd_device: raw.bcd_device(),
+            usb_product_id: ProductId(raw.usb_product_id()),
+            bcd_device: Bcd(raw.bcd_device()),
         }
     }
 }
