@@ -14,8 +14,7 @@ pub use id_header_vdo::IdHeaderVdo;
 pub struct ResponseVdos {
     /// Information corresponding to the Product.
     ///
-    /// To get an SOP-specific ID Header VDO, use the [`Into`] implementations on
-    /// this field.
+    /// To get an SOP-specific ID Header VDO, use [`Self::id()`].
     pub id: crate::vdm::structured::command::discover_identity::IdHeaderVdo,
 
     /// The XID assigned by the USB-IF to the product.
@@ -35,6 +34,21 @@ pub struct ResponseVdos {
     /// These are determined by the [`IdHeaderVdo::product_type_ufp`] field during
     /// parsing.
     pub ufp_product_type_vdos: UfpProductTypeVdos,
+}
+
+impl ResponseVdos {
+    /// Gets the SOP-specific ID Header VDO from this response.
+    pub fn id(&self) -> IdHeaderVdo {
+        IdHeaderVdo {
+            usb_vendor_id: self.id.usb_vendor_id,
+            connector_type: self.id.connector_type,
+            product_type_dfp: self.dfp_product_type_vdos.into(),
+            modal_operation_supported: self.id.modal_operation_supported,
+            product_type_ufp: self.ufp_product_type_vdos.into(),
+            usb_communication_capable_as_usb_device: self.id.usb_communication_capable_as_usb_device,
+            usb_communication_capable_as_usb_host: self.id.usb_communication_capable_as_usb_host,
+        }
+    }
 }
 
 /// The Product Type DFP VDOs, parsed based on [`IdHeaderVdo::product_type_dfp`].

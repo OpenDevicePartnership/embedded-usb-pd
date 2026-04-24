@@ -1,5 +1,7 @@
 use crate::vdm::structured::command::discover_identity::ConnectorType;
 
+use super::{DfpProductTypeVdos, UfpProductTypeVdos};
+
 /// The ID Header VDO contains information corresponding to the Power Delivery Product.
 ///
 /// This type differs from [`crate::vdm::structured::command::discover_identity::IdHeaderVdo`]
@@ -196,6 +198,17 @@ impl TryFrom<u8> for ProductTypeDfp {
     }
 }
 
+impl From<UfpProductTypeVdos> for ProductTypeUfp {
+    fn from(ufp_product_type_vdos: UfpProductTypeVdos) -> Self {
+        match ufp_product_type_vdos {
+            UfpProductTypeVdos::NotAUfp => Self::NotAUfp,
+            UfpProductTypeVdos::Hub(_) => Self::Hub,
+            UfpProductTypeVdos::Peripheral(_) => Self::Peripheral,
+            UfpProductTypeVdos::Psd => Self::Psd,
+        }
+    }
+}
+
 /// The [`IdHeaderVdo::product_type_ufp`] field indicates the type of Product when
 /// in the UFP Data Role, whether a VDO will be returned, and if so, the type of
 /// VDO to be returned.
@@ -235,6 +248,17 @@ impl TryFrom<u8> for ProductTypeUfp {
             0b010 => Ok(Self::Peripheral),
             0b011 => Ok(Self::Psd),
             _ => Err(()),
+        }
+    }
+}
+
+impl From<DfpProductTypeVdos> for ProductTypeDfp {
+    fn from(dfp_product_type_vdos: DfpProductTypeVdos) -> Self {
+        match dfp_product_type_vdos {
+            DfpProductTypeVdos::NotADfp => Self::NotADfp,
+            DfpProductTypeVdos::Hub(_) => Self::Hub,
+            DfpProductTypeVdos::Host(_) => Self::Host,
+            DfpProductTypeVdos::Charger(_) => Self::Charger,
         }
     }
 }

@@ -1,5 +1,7 @@
 use crate::vdm::structured::command::discover_identity::ConnectorType;
 
+use super::ProductTypeVdos;
+
 /// The ID Header VDO contains information corresponding to the Power Delivery Product.
 ///
 /// This type differs from [`crate::vdm::structured::command::discover_identity::IdHeaderVdo`]
@@ -168,6 +170,17 @@ impl TryFrom<u8> for ProductType {
             0b100 => Ok(Self::ActiveCable),
             0b110 => Ok(Self::Vpd),
             _ => Err(()),
+        }
+    }
+}
+
+impl From<ProductTypeVdos> for ProductType {
+    fn from(product_type_vdos: ProductTypeVdos) -> Self {
+        match product_type_vdos {
+            ProductTypeVdos::NotACablePlugVpd => Self::NotACablePlugVpd,
+            ProductTypeVdos::PassiveCable(_) => Self::PassiveCable,
+            ProductTypeVdos::ActiveCable(_, _) => Self::ActiveCable,
+            ProductTypeVdos::Vpd(_) => Self::Vpd,
         }
     }
 }
