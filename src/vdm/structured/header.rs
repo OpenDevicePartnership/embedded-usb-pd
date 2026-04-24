@@ -62,7 +62,7 @@ impl From<u8> for CommandType {
             0b10 => Self::Nak,
             // technically >0b11 is unreachable since we masked with 0b11, but we'll
             // treat any cosmic rays as a Busy response to make this From, not TryFrom
-            // 0b11 | _ => Self::Busy, // 0b11 is explicitly Busy but this bothers clippy::wildcard_in_or_patterns
+            // 0b11 | _ bothers clippy::wildcard_in_or_patterns, so we'll just use a wildcard arm
             _ => Self::Busy,
         }
     }
