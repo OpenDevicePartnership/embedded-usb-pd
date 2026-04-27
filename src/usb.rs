@@ -9,9 +9,9 @@ pub struct Bcd(pub u16);
 impl Bcd {
     /// Parse the BCD value into its major, minor, and subminor components in the
     /// format `jj.m.n` where
-    /// - `jj` is the major version (2 digits)
-    /// - `m` is the minor version (1 digit)
-    /// - `n` is the subminor version (1 digit)
+    /// - `jj` is the major version (2 nibbles)
+    /// - `m` is the minor version (1 nibble)
+    /// - `n` is the subminor version (1 nibble)
     pub const fn jjmn(&self) -> (u8, u8, u8) {
         let jj = (self.0 >> 12) as u8;
         let m = ((self.0 >> 8) & 0xF) as u8;
