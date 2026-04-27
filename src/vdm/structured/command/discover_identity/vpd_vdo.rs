@@ -20,6 +20,8 @@ pub struct VpdVdo {
 
     /// The impedance through `VBUS` the VPD adds in series between the Source and Sink.
     pub vbus_impedance: VbusImpedance,
+
+    /// The level of current the VPD can pass through when Charge Through is active.
     pub charge_through_current_support: ChargeThroughCurrentSupport,
 
     /// The maximum voltage that a Sink shall negotiate through the VPD Charge Through
