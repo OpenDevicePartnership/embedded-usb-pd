@@ -90,6 +90,9 @@ bitfield::bitfield! {
     pub u16, svid, set_svid: 31, 16;
 }
 
+/// Errors that can occur when parsing a [`Header`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ParseError {
     InvalidCommand,
 }
