@@ -13,7 +13,7 @@ pub const RESPONSE_DATA_LEN: usize = 16;
 pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>();
 
 /// GetCapability command
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Args;
 
@@ -218,7 +218,7 @@ impl<Context> Decode<Context> for OptionalFeatures {
 
 bitfield! {
     /// Raw power source data for GetCapability command
-    #[derive(Copy, Clone)]
+    #[derive(Copy, Clone, PartialEq, Eq)]
     struct PowerSourceRaw(u8);
     impl Debug;
 
@@ -245,7 +245,7 @@ impl defmt::Format for PowerSourceRaw {
 }
 
 /// Higher-level wrapper around [`PowerSourceRaw`]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct PowerSource(PowerSourceRaw);
 

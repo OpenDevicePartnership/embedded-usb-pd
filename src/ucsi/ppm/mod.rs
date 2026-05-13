@@ -93,7 +93,7 @@ impl Decode<()> for Command {
 }
 
 /// PPM command response data
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ResponseData {
     GetCapability(get_capability::ResponseData),
@@ -123,7 +123,7 @@ impl Decode<CommandType> for ResponseData {
 }
 
 /// PPM command response
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Response<T: PortId> {
     /// CCI is produced by every command

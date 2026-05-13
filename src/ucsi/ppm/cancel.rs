@@ -7,7 +7,7 @@ use bincode::error::{DecodeError, EncodeError};
 use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
 
 /// PPM CANCEL command args
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Args;
 

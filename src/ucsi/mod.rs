@@ -186,7 +186,7 @@ impl<Context, T: PortId> Decode<Context> for Command<T> {
 }
 
 /// UCSI command response data
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ResponseData {
     Ppm(ppm::ResponseData),
@@ -210,7 +210,7 @@ impl Encode for ResponseData {
 }
 
 /// UCSI command response
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Response<T: PortId> {
     /// CCI is produced by every command
@@ -248,7 +248,7 @@ pub type LocalResponse = Response<LocalPortId>;
 
 bitfield! {
     /// Common header shared by all UCSI commands
-    #[derive(Copy, Clone)]
+    #[derive(Copy, Clone, PartialEq, Eq)]
     pub(self) struct CommandHeaderRaw(u16);
     impl Debug;
 
@@ -271,7 +271,7 @@ impl defmt::Format for CommandHeaderRaw {
 }
 
 /// Higher-level wrapper around [`CommandHeaderRaw`]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CommandHeader(CommandHeaderRaw);
 

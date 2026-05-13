@@ -13,7 +13,7 @@ pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() -
 /// Maximum support vendor-data length
 pub const MAX_VENDOR_DATA_LEN: usize = 14;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Args;
 

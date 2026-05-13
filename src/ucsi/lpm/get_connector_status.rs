@@ -507,7 +507,7 @@ impl From<u8> for ProviderCapsLimitedReason {
 
 bitfield! {
     /// Raw response data bitfield
-    #[derive(Copy, Clone, Default)]
+    #[derive(Copy, Clone, Default, PartialEq, Eq)]
     pub struct ResponseDataRaw([u8]);
     impl Debug;
 
@@ -741,7 +741,7 @@ impl<Context> Decode<Context> for ResponseData {
     }
 }
 /// GET_CONNECTOR_STATUS command arguments
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Args;
 
