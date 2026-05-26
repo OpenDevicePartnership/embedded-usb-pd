@@ -1,4 +1,9 @@
 # Rust PR Review Instructions
+
+> For general contribution guidance (setup, CI commands, coding
+> conventions, do's and don'ts), see [`AGENTS.md`](../AGENTS.md) at the
+> repository root. The notes below are review-specific.
+
 CI overview:
 * CI will build the project and run `cargo test` and `cargo clippy`.
 * Feature combinations are checked with `cargo hack`.
