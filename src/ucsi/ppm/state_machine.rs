@@ -71,7 +71,7 @@ pub struct InvalidTransition<'a, T: PortId> {
     pub input: Input<'a, T>,
 }
 
-// Doctest tries to compile the mermaid code as rust so just disable it
+/// PPM State Machine
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct StateMachine<T: PortId> {
