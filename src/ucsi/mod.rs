@@ -451,321 +451,322 @@ mod tests {
 
     #[test]
     fn test_command_header_decoding_ppm_reset() {
-        let bytes = [CommandType::PpmReset as u8, 0x00];
+        let bytes = [CommandType::PpmReset as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::PpmReset);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_cancel() {
-        let bytes = [CommandType::Cancel as u8, 0x00];
+        let bytes = [CommandType::Cancel as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::Cancel);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_connector_reset() {
-        let bytes = [CommandType::ConnectorReset as u8, 0x00];
+        let bytes = [CommandType::ConnectorReset as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::ConnectorReset);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_ack_cc_ci() {
-        let bytes = [CommandType::AckCcCi as u8, 0x00];
+        let bytes = [CommandType::AckCcCi as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::AckCcCi);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_set_notification_enable() {
-        let bytes = [CommandType::SetNotificationEnable as u8, 0x00];
+        let bytes = [CommandType::SetNotificationEnable as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::SetNotificationEnable);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_get_capability() {
-        let bytes = [CommandType::GetCapability as u8, 0x00];
+        // Use a different constant because GetCapability is 0x06.
+        let bytes = [CommandType::GetCapability as u8, 0x07];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::GetCapability);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x07);
     }
 
     #[test]
     fn test_command_header_decoding_get_connector_capability() {
-        let bytes = [CommandType::GetConnectorCapability as u8, 0x00];
+        let bytes = [CommandType::GetConnectorCapability as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::GetConnectorCapability);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_set_ccom() {
-        let bytes = [CommandType::SetCcom as u8, 0x00];
+        let bytes = [CommandType::SetCcom as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::SetCcom);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_set_uor() {
-        let bytes = [CommandType::SetUor as u8, 0x00];
+        let bytes = [CommandType::SetUor as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::SetUor);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_set_pdm() {
-        let bytes = [CommandType::SetPdm as u8, 0x00];
+        let bytes = [CommandType::SetPdm as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::SetPdm);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_set_pdr() {
-        let bytes = [CommandType::SetPdr as u8, 0x00];
+        let bytes = [CommandType::SetPdr as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::SetPdr);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_get_alternate_modes() {
-        let bytes = [CommandType::GetAlternateModes as u8, 0x00];
+        let bytes = [CommandType::GetAlternateModes as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::GetAlternateModes);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_get_cam_supported() {
-        let bytes = [CommandType::GetCamSupported as u8, 0x00];
+        let bytes = [CommandType::GetCamSupported as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::GetCamSupported);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_get_current_cam() {
-        let bytes = [CommandType::GetCurrentCam as u8, 0x00];
+        let bytes = [CommandType::GetCurrentCam as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::GetCurrentCam);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_set_new_cam() {
-        let bytes = [CommandType::SetNewCam as u8, 0x00];
+        let bytes = [CommandType::SetNewCam as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::SetNewCam);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_get_pdos() {
-        let bytes = [CommandType::GetPdos as u8, 0x00];
+        let bytes = [CommandType::GetPdos as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::GetPdos);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_get_cable_property() {
-        let bytes = [CommandType::GetCableProperty as u8, 0x00];
+        let bytes = [CommandType::GetCableProperty as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::GetCableProperty);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_get_connector_status() {
-        let bytes = [CommandType::GetConnectorStatus as u8, 0x00];
+        let bytes = [CommandType::GetConnectorStatus as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::GetConnectorStatus);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_get_error_status() {
-        let bytes = [CommandType::GetErrorStatus as u8, 0x00];
+        let bytes = [CommandType::GetErrorStatus as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::GetErrorStatus);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_set_power_level() {
-        let bytes = [CommandType::SetPowerLevel as u8, 0x00];
+        let bytes = [CommandType::SetPowerLevel as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::SetPowerLevel);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_get_pd_message() {
-        let bytes = [CommandType::GetPdMessage as u8, 0x00];
+        let bytes = [CommandType::GetPdMessage as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::GetPdMessage);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_get_attention_vdo() {
-        let bytes = [CommandType::GetAttentionVdo as u8, 0x00];
+        let bytes = [CommandType::GetAttentionVdo as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::GetAttentionVdo);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_get_cam_cs() {
-        let bytes = [CommandType::GetCamCs as u8, 0x00];
+        let bytes = [CommandType::GetCamCs as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::GetCamCs);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_lpm_fw_update_request() {
-        let bytes = [CommandType::LpmFwUpdateRequest as u8, 0x00];
+        let bytes = [CommandType::LpmFwUpdateRequest as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::LpmFwUpdateRequest);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_security_request() {
-        let bytes = [CommandType::SecurityRequest as u8, 0x00];
+        let bytes = [CommandType::SecurityRequest as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::SecurityRequest);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_set_retimer_mode() {
-        let bytes = [CommandType::SetRetimerMode as u8, 0x00];
+        let bytes = [CommandType::SetRetimerMode as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::SetRetimerMode);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_set_sink_path() {
-        let bytes = [CommandType::SetSinkPath as u8, 0x00];
+        let bytes = [CommandType::SetSinkPath as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::SetSinkPath);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_set_pdos() {
-        let bytes = [CommandType::SetPdos as u8, 0x00];
+        let bytes = [CommandType::SetPdos as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::SetPdos);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_read_power_level() {
-        let bytes = [CommandType::ReadPowerLevel as u8, 0x00];
+        let bytes = [CommandType::ReadPowerLevel as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::ReadPowerLevel);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_chunking_support() {
-        let bytes = [CommandType::ChunkingSupport as u8, 0x00];
+        let bytes = [CommandType::ChunkingSupport as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::ChunkingSupport);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_set_usb() {
-        let bytes = [CommandType::SetUsb as u8, 0x00];
+        let bytes = [CommandType::SetUsb as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::SetUsb);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 
     #[test]
     fn test_command_header_decoding_get_lpm_ppm_info() {
-        let bytes = [CommandType::GetLpmPpmInfo as u8, 0x00];
+        let bytes = [CommandType::GetLpmPpmInfo as u8, 0x06];
         let (header, consumed): (CommandHeader, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(consumed, 2);
         assert_eq!(header.command(), CommandType::GetLpmPpmInfo);
-        assert_eq!(header.data_len(), 0);
+        assert_eq!(header.data_len(), 0x06);
     }
 }

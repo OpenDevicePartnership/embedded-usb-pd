@@ -313,12 +313,25 @@ mod test {
                 .set_contract_failure(true)
                 .set_overcurrent(true),
             vendor: [
-                0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE,
             ],
         };
 
         bytes[0] = 0xf0;
-        bytes[2] = 0x01;
+        bytes[2] = 0x11;
+        bytes[3] = 0x22;
+        bytes[4] = 0x33;
+        bytes[5] = 0x44;
+        bytes[6] = 0x55;
+        bytes[7] = 0x66;
+        bytes[8] = 0x77;
+        bytes[9] = 0x88;
+        bytes[10] = 0x99;
+        bytes[11] = 0xAA;
+        bytes[12] = 0xBB;
+        bytes[13] = 0xCC;
+        bytes[14] = 0xDD;
+        bytes[15] = 0xEE;
 
         let (response_data, consumed): (ResponseData, usize) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
