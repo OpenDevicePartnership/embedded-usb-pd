@@ -338,7 +338,7 @@ pub type GlobalCommand = Command<GlobalPortId>;
 pub type LocalCommand = Command<LocalPortId>;
 
 /// LPM response data
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ResponseData {
     ConnectorReset,
@@ -404,7 +404,7 @@ impl Decode<CommandType> for ResponseData {
 }
 
 /// LPM command response
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Response<T: PortId> {
     /// CCI is produced by every command
@@ -418,7 +418,7 @@ pub type LocalResponse = Response<LocalPortId>;
 
 bitfield! {
     /// Raw connector number
-    #[derive(Copy, Clone, Default)]
+    #[derive(Copy, Clone, Default, PartialEq, Eq)]
     pub(self) struct ConnectorNumberRaw(u8);
     impl Debug;
 

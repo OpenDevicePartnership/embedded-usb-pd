@@ -292,7 +292,7 @@ impl<Context> Decode<Context> for ResponseData {
 }
 
 /// GET_CONNECTOR_CAPABILITY command arguments
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Args;
 

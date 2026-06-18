@@ -29,7 +29,7 @@ impl Current {
 }
 
 /// The current state of a Type-C port.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ConnectionState {
     /// The port is connected to an USB Type-C Digital Audio (TCDA) accessory.
