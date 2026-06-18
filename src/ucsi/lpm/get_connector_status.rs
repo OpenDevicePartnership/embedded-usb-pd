@@ -775,7 +775,7 @@ pub mod test {
             status: Some(ConnectedStatus {
                 power_op_mode: PowerOperationMode::Pd,
                 power_direction: PowerRole::Sink,
-                partner_flags: ConnectorPartnerFlags::from(0),
+                partner_flags: ConnectorPartnerFlags::from(0x03),
                 partner_type: ConnectorPartnerType::DfpAttached,
                 rdo: Some(0x78563412),
                 battery_charging_status: Some(BatteryChargingCapabilityStatus::Nominal),
@@ -798,7 +798,8 @@ pub mod test {
         bytes[2] = 0x0b;
 
         // Connector partner flags - 1 byte
-        // DFP
+        // DFP, usb + alt_mode set (lower 2 bits of partner_flags = bits 21,22 = byte 2 bits 5,6)
+        bytes[2] |= 0x60;
         bytes[3] = 0x20;
 
         // RDO - 4 bytes
