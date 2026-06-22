@@ -4,7 +4,7 @@ use bincode::enc::{Encode, Encoder};
 use bincode::error::{DecodeError, EncodeError};
 use bitfield::bitfield;
 
-use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
+use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
 
 bitfield! {
     /// Raw ack flags, see UCSI spec 6.5.4 for details

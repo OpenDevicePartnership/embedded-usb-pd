@@ -12,6 +12,7 @@ bincode = { version = "2.0.1", default-features = false }
 [features]
 default = []
 defmt = ["dep:defmt"]
+ucsi-v1_2 = []
 
 [lints.clippy]
 correctness = "deny"

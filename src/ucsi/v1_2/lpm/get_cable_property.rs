@@ -6,7 +6,7 @@ use bincode::{Decode, Encode};
 use bitfield::bitfield;
 
 use crate::pdo::MA50_UNIT;
-use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
+use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
 
 /// Data length for the GET_CABLE_PROPERTY command response
 pub const RESPONSE_DATA_LEN: usize = 5;

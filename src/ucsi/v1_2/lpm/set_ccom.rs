@@ -1,4 +1,4 @@
-//! Types for SET_UOR command, see UCSI spec 6.5.9
+//! Types for SET_CCOM command, see UCSI spec 6.5.8
 
 use bincode::de::Decoder;
 use bincode::enc::Encoder;
@@ -6,7 +6,7 @@ use bincode::error::{DecodeError, EncodeError};
 use bincode::{Decode, Encode};
 use bitfield::bitfield;
 
-use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
+use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
 
 /// Command padding
 pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() - size_of::<ArgsRaw>();
@@ -19,12 +19,14 @@ bitfield! {
 
     /// Connector number
     pub u8, connector_number, set_connector_number: 6, 0;
-    /// DFP
-    pub bool, dfp, set_dfp: 7;
-    /// UFP
-    pub bool, ufp, set_ufp: 8;
-    /// Accept data-role swap
-    pub bool, accept_swap, set_accept_swap: 9;
+    /// Rp
+    pub bool, rp, set_rp: 7;
+    /// Rd
+    pub bool, rd, set_rd: 8;
+    /// Drp
+    pub bool, drp, set_drp: 9;
+    /// Disabled
+    pub bool, disabled, set_disabled: 10;
 }
 
 #[cfg(feature = "defmt")]
@@ -32,12 +34,13 @@ impl defmt::Format for ArgsRaw {
     fn format(&self, fmt: defmt::Formatter) {
         defmt::write!(
             fmt,
-            "ArgsRaw {{ .0: {}, connector_number: {}, dfp: {}, ufp: {}, accept_swap: {} }}",
+            "ArgsRaw {{ .0: {}, connector_number: {}, rp: {}, rd: {}, drp: {}, disabled: {} }}",
             self.0,
             self.connector_number(),
-            self.dfp(),
-            self.ufp(),
-            self.accept_swap()
+            self.rp(),
+            self.rd(),
+            self.drp(),
+            self.disabled()
         )
     }
 }
@@ -57,30 +60,39 @@ impl Args {
         self
     }
 
-    pub fn dfp(&self) -> bool {
-        self.0.dfp()
+    pub fn rp(&self) -> bool {
+        self.0.rp()
     }
 
-    pub fn set_dfp(&mut self, dfp: bool) -> &mut Self {
-        self.0.set_dfp(dfp);
+    pub fn set_rp(&mut self, rp: bool) -> &mut Self {
+        self.0.set_rp(rp);
         self
     }
 
-    pub fn ufp(&self) -> bool {
-        self.0.ufp()
+    pub fn rd(&self) -> bool {
+        self.0.rd()
     }
 
-    pub fn set_ufp(&mut self, ufp: bool) -> &mut Self {
-        self.0.set_ufp(ufp);
+    pub fn set_rd(&mut self, rd: bool) -> &mut Self {
+        self.0.set_rd(rd);
         self
     }
 
-    pub fn accept_swap(&self) -> bool {
-        self.0.accept_swap()
+    pub fn drp(&self) -> bool {
+        self.0.drp()
     }
 
-    pub fn set_accept_swap(&mut self, accept_swap: bool) -> &mut Self {
-        self.0.set_accept_swap(accept_swap);
+    pub fn set_drp(&mut self, drp: bool) -> &mut Self {
+        self.0.set_drp(drp);
+        self
+    }
+
+    pub fn disabled(&self) -> bool {
+        self.0.disabled()
+    }
+
+    pub fn set_disabled(&mut self, disabled: bool) -> &mut Self {
+        self.0.set_disabled(disabled);
         self
     }
 }
@@ -123,15 +135,12 @@ mod test {
 
     #[test]
     fn test_decode_args() {
-        // DFP/accept swap on connector 3
+        // Rp/DRP on connector 3
         let encoded: [u8; 6] = [0x83, 0x02, 0x00, 0x00, 0x00, 0x00];
         let (decoded, size): (Args, usize) = decode_from_slice(&encoded, standard().with_fixed_int_encoding()).unwrap();
         assert_eq!(size, 6);
 
-        let expected = *Args::default()
-            .set_connector_number(3)
-            .set_accept_swap(true)
-            .set_dfp(true);
+        let expected = *Args::default().set_connector_number(3).set_drp(true).set_rp(true);
         assert_eq!(decoded, expected);
     }
 }

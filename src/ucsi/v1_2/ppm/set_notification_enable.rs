@@ -3,7 +3,7 @@ use bincode::enc::{Encode, Encoder};
 use bincode::error::{DecodeError, EncodeError};
 use bitfield::bitfield;
 
-use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
+use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
 
 bitfield! {
     /// Argument for SET_NOTIFICATION_ENABLE see USCI spec 6.5.5

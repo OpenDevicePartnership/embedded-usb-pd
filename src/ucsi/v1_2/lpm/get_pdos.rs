@@ -5,7 +5,7 @@ use bincode::error::{AllowedEnumVariants, DecodeError, EncodeError};
 use bincode::{Decode, Encode};
 use bitfield::bitfield;
 
-use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
+use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
 use crate::PowerRole;
 
 /// Command padding

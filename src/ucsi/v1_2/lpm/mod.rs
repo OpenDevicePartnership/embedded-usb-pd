@@ -4,7 +4,7 @@ use bincode::error::{AllowedEnumVariants, DecodeError, EncodeError};
 use bincode::{Decode, Encode};
 use bitfield::bitfield;
 
-use crate::ucsi::{cci, CommandHeader, CommandType};
+use crate::ucsi::v1_2::{cci, CommandHeader, CommandType};
 use crate::{GlobalPortId, LocalPortId, PortId};
 
 pub mod connector_reset;
@@ -491,7 +491,7 @@ mod tests {
     use bincode::decode_from_slice;
 
     use super::*;
-    use crate::ucsi::COMMAND_LEN;
+    use crate::ucsi::v1_2::COMMAND_LEN;
     use crate::PowerRole;
 
     #[test]
