@@ -48,7 +48,7 @@ impl CommandType {
     pub fn has_response(&self) -> bool {
         // Written as a negative so this function returns true for command not in this list.
         // One of the major uses for this function is to determine if there's a response to serialize.
-        // If this function returns true by default then that makes it that a subsequent sealization
+        // If this function returns true by default then that makes it that a subsequent serialization
         // attempt will fail due to the lack of corresponding response data types. Otherwise the
         // serialization will not be attempted and no error will occur.
         !matches!(
