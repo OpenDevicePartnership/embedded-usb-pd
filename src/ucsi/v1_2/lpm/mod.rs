@@ -15,6 +15,7 @@ pub mod get_connector_capability;
 pub mod get_connector_status;
 pub mod get_current_cam;
 pub mod get_error_status;
+pub mod get_pd_message;
 pub mod get_pdos;
 pub mod set_ccom;
 pub mod set_new_cam;
@@ -40,6 +41,7 @@ pub enum CommandData {
     GetCurrentCam,
     GetPdos(get_pdos::Args),
     GetCableProperty,
+    GetPdMessage(get_pd_message::Args),
 }
 
 impl CommandData {
@@ -60,6 +62,7 @@ impl CommandData {
             CommandData::GetCurrentCam => CommandType::GetCurrentCam,
             CommandData::GetPdos(_) => CommandType::GetPdos,
             CommandData::GetCableProperty => CommandType::GetCableProperty,
+            CommandData::GetPdMessage(_) => CommandType::GetPdMessage,
         }
     }
 }
@@ -105,6 +108,9 @@ impl<T: PortId> Command<T> {
                 args.set_connector_number(self.port.into());
             }
             CommandData::GetPdos(ref mut args) => {
+                args.set_connector_number(self.port.into());
+            }
+            CommandData::GetPdMessage(ref mut args) => {
                 args.set_connector_number(self.port.into());
             }
             _ => {}
@@ -191,6 +197,10 @@ impl<T: PortId> Encode for Command<T> {
             CommandData::GetCableProperty => {
                 raw_port.encode(encoder)?;
                 get_cable_property::Args.encode(encoder)
+            }
+            CommandData::GetPdMessage(args) => {
+                // The connector number for this command is combined with its arguments, let it handle everything
+                args.encode(encoder)
             }
         }
     }
@@ -318,6 +328,14 @@ impl<T: PortId> Decode<CommandHeader> for Command<T> {
                     operation: CommandData::GetCableProperty,
                 })
             }
+            CommandType::GetPdMessage => {
+                // The connector number is combined with arguments, let it handle everything
+                let args = get_pd_message::Args::decode(decoder)?;
+                Ok(Command {
+                    port: From::from(args.connector_number()),
+                    operation: CommandData::GetPdMessage(args),
+                })
+            }
             command_type => Err(DecodeError::UnexpectedVariant {
                 type_name: "CommandType",
                 allowed: &AllowedEnumVariants::Allowed(&[CommandType::GetConnectorStatus as u32]),
@@ -350,6 +368,7 @@ pub enum ResponseData {
     GetCurrentCam(get_current_cam::ResponseData),
     GetPdos(get_pdos::ResponseData),
     GetCableProperty(get_cable_property::ResponseData),
+    GetPdMessage(get_pd_message::ResponseData),
 }
 
 impl Encode for ResponseData {
@@ -364,6 +383,7 @@ impl Encode for ResponseData {
             ResponseData::GetCurrentCam(data) => data.encode(encoder),
             ResponseData::GetPdos(data) => data.encode(encoder),
             ResponseData::GetCableProperty(data) => data.encode(encoder),
+            ResponseData::GetPdMessage(data) => data.encode(encoder),
         }
     }
 }
@@ -394,6 +414,9 @@ impl Decode<CommandType> for ResponseData {
             CommandType::GetCableProperty => Ok(ResponseData::GetCableProperty(
                 get_cable_property::ResponseData::decode(decoder)?,
             )),
+            CommandType::GetPdMessage => Ok(ResponseData::GetPdMessage(get_pd_message::ResponseData::decode(
+                decoder,
+            )?)),
             command_type => Err(DecodeError::UnexpectedVariant {
                 type_name: "CommandType",
                 allowed: &AllowedEnumVariants::Allowed(&[CommandType::GetConnectorStatus as u32]),
@@ -752,6 +775,34 @@ mod tests {
             GlobalCommand {
                 port: GlobalPortId(1),
                 operation: CommandData::GetCableProperty,
+            }
+        );
+    }
+
+    #[test]
+    fn test_get_pd_message() {
+        let mut bytes = [0u8; COMMAND_LEN];
+        bytes[0] = CommandType::GetPdMessage as u8;
+        bytes[2] = 0x83;
+        bytes[3] = 0x08;
+        bytes[4] = 0x01;
+        bytes[5] = 0x02;
+
+        let (get_pd_message, consumed): (GlobalCommand, usize) =
+            decode_from_slice(&bytes, standard().with_fixed_int_encoding()).unwrap();
+        assert_eq!(consumed, bytes.len());
+        assert_eq!(
+            get_pd_message,
+            GlobalCommand {
+                port: GlobalPortId(3),
+                operation: CommandData::GetPdMessage(
+                    *get_pd_message::Args::default()
+                        .set_connector_number(3)
+                        .set_recipient(Recipient::Sop)
+                        .set_message_offset(2)
+                        .set_num_bytes(1)
+                        .set_message_type(get_pd_message::MessageType::BatteryCap)
+                ),
             }
         );
     }
