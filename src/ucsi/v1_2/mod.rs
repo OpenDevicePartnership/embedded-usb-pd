@@ -1,4 +1,4 @@
-//! Ucsi types, see spec at https://www.usb.org/document-library/usb-type-cr-connector-system-software-interface-ucsi-specification
+//! UCSI v1.2 implementation, see spec at https://www.intel.com/content/dam/www/public/us/en/documents/technical-specifications/usb-type-c-ucsi-spec.pdf
 #![allow(missing_docs)]
 
 use bincode::de::{Decode, Decoder};
