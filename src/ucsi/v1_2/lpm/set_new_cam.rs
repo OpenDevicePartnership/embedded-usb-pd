@@ -5,7 +5,7 @@ use bincode::enc::Encoder;
 use bincode::error::{DecodeError, EncodeError};
 use bincode::{Decode, Encode};
 
-use crate::ucsi::lpm::ConnectorNumberRaw;
+use crate::ucsi::v1_2::lpm::ConnectorNumberRaw;
 
 /// Command data length
 pub const COMMAND_DATA_LEN: usize = 6;

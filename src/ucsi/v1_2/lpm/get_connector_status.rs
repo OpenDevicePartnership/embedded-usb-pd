@@ -5,8 +5,8 @@ use bincode::enc::{Encode, Encoder};
 use bincode::error::{AllowedEnumVariants, DecodeError, EncodeError};
 use bitfield::bitfield;
 
-use crate::ucsi::ppm::set_notification_enable::NotificationEnable;
-use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
+use crate::ucsi::v1_2::ppm::set_notification_enable::NotificationEnable;
+use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
 use crate::PowerRole;
 
 /// Data length for the GET_CONNECTOR_STATUS command response

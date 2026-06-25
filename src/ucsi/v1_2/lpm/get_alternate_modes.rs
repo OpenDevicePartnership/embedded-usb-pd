@@ -7,8 +7,8 @@ use bincode::{Decode, Encode};
 use bitfield::bitfield;
 
 use super::Recipient;
-use crate::ucsi::lpm::InvalidRecipient;
-use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
+use crate::ucsi::v1_2::lpm::InvalidRecipient;
+use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
 use crate::vdm::structured::Svid;
 use crate::vdm::AltModeId;
 

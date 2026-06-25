@@ -1,4 +1,4 @@
-use crate::ucsi::{cci, CommandHeader, CommandType};
+use crate::ucsi::v1_2::{cci, CommandHeader, CommandType};
 use crate::{GlobalPortId, LocalPortId, PortId};
 
 pub mod ack_cc_ci;
@@ -141,7 +141,7 @@ mod tests {
     use bincode::decode_from_slice;
 
     use super::*;
-    use crate::ucsi::COMMAND_LEN;
+    use crate::ucsi::v1_2::COMMAND_LEN;
 
     #[test]
     fn test_decode_ppm_reset() {

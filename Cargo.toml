@@ -12,6 +12,8 @@ bincode = { version = "2.0.1", default-features = false }
 [features]
 default = []
 defmt = ["dep:defmt"]
+# Enable UCSI v1.2 data structures
+ucsi-v1_2 = []
 
 [lints.clippy]
 correctness = "deny"

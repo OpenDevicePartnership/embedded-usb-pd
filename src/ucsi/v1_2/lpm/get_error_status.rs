@@ -3,7 +3,7 @@ use bincode::enc::{Encode, Encoder};
 use bincode::error::{DecodeError, EncodeError};
 use bitfield::bitfield;
 
-use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
+use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
 
 /// Data length for the GET_CONNECTOR_STATUS command response
 pub const RESPONSE_DATA_LEN: usize = MAX_VENDOR_DATA_LEN + size_of::<InformationRaw>();

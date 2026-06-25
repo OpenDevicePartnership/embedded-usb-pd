@@ -4,7 +4,7 @@ use bincode::de::{Decode, Decoder};
 use bincode::enc::{Encode, Encoder};
 use bincode::error::{DecodeError, EncodeError};
 
-use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
+use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
 
 /// PPM CANCEL command args
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

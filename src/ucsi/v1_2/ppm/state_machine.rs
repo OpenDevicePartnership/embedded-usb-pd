@@ -6,8 +6,9 @@
 //! is left to the implementation. The state machine presented here abstracts over these actions with the [`Input`] enum.
 //! The [`Output`] enum defines the notifications to the OPM.
 
-use crate::ucsi::ppm::ack_cc_ci;
-use crate::{ucsi, GlobalPortId, LocalPortId, PortId};
+use crate::ucsi::v1_2 as ucsi;
+use crate::ucsi::v1_2::ppm::ack_cc_ci;
+use crate::{GlobalPortId, LocalPortId, PortId};
 
 /// PPM states
 ///
@@ -167,7 +168,7 @@ pub type LocalStateMachine = StateMachine<LocalPortId>;
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::ucsi::{lpm, ppm, Command};
+    use crate::ucsi::v1_2::{lpm, ppm, Command};
 
     #[test]
     fn test_reset_all() {

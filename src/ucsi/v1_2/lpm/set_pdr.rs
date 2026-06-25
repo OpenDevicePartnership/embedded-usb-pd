@@ -6,7 +6,7 @@ use bincode::error::{DecodeError, EncodeError};
 use bincode::{Decode, Encode};
 use bitfield::bitfield;
 
-use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
+use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
 
 /// Command padding
 pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() - size_of::<ArgsRaw>();

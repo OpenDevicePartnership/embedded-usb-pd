@@ -1,18 +1,18 @@
-//! Types for GET_CURRENT_CAM command, see UCSI spec 6.5.13
-
+//! Types for GET_CAM_SUPPORTED command, see UCSI spec 6.5.12
 use bincode::de::Decoder;
 use bincode::enc::Encoder;
 use bincode::error::{DecodeError, EncodeError};
 use bincode::{Decode, Encode};
 
-use crate::ucsi::{CommandHeaderRaw, COMMAND_LEN};
+use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
 
 /// Data length for the GET_CAM_SUPPORTED command response
-/// This matches the mailbox size
-pub const RESPONSE_DATA_LEN: usize = 16;
+pub const RESPONSE_DATA_LEN: usize = 1;
 /// Command padding
 // -1 for the connector number byte
 pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() - 1;
+/// Maximum number of alternate modes supported
+pub const MAX_ALT_MODES: usize = 8;
 
 /// Command arguments
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -34,11 +34,31 @@ impl<Context> Decode<Context> for Args {
     }
 }
 
-/// GET_CURRENT_CAM response data, supports up to [`RESPONSE_DATA_LEN`] alternate modes
+/// GET_CAM_SUPPORTED response data, supports up to [`MAX_ALT_MODES`] alternate modes
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ResponseData {
-    pub alt_modes: [u8; RESPONSE_DATA_LEN],
+    alt_modes: u8,
+}
+
+impl ResponseData {
+    pub fn alt_mode_supported(&self, index: usize) -> bool {
+        if index < MAX_ALT_MODES {
+            (self.alt_modes & (1 << index)) != 0
+        } else {
+            false
+        }
+    }
+
+    pub fn set_alt_mode_supported(&mut self, index: usize, supported: bool) {
+        if index < MAX_ALT_MODES {
+            if supported {
+                self.alt_modes |= 1 << index;
+            } else {
+                self.alt_modes &= !(1 << index);
+            }
+        }
+    }
 }
 
 impl Encode for ResponseData {
@@ -49,7 +69,7 @@ impl Encode for ResponseData {
 
 impl<Context> Decode<Context> for ResponseData {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
-        <[u8; RESPONSE_DATA_LEN]>::decode(decoder).map(|v| ResponseData { alt_modes: v })
+        u8::decode(decoder).map(|v| ResponseData { alt_modes: v })
     }
 }
 
@@ -62,10 +82,8 @@ mod test {
 
     #[test]
     fn test_encode_response_data() {
-        let bytes = [
-            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
-        ];
-        let expected = ResponseData { alt_modes: bytes };
+        let bytes = [0x12; RESPONSE_DATA_LEN];
+        let expected = ResponseData { alt_modes: 0x12 };
         let (data, len): (ResponseData, _) =
             decode_from_slice(&bytes, standard().with_fixed_int_encoding()).expect("Decoding failed");
         assert_eq!(data, expected);
