@@ -220,7 +220,7 @@ impl<Context> Decode<Context> for Args {
         let raw = u32::decode(decoder)?;
         // Read padding
         let _padding: [u8; COMMAND_PADDING] = Decode::decode(decoder)?;
-        Ok(Self(ArgsRaw(raw)))
+        Args::try_from(raw).map_err(Into::into)
     }
 }
 
@@ -307,6 +307,30 @@ mod test {
             .set_role(PowerRole::Source)
             .set_source_capability_type(SourceCapabilityType::Maximum);
         assert_eq!(decoded, expected);
+    }
+
+    #[test]
+    fn test_decode_args_invalid_source_capability_type() {
+        // Partner, connector 3, 1 PDO, source, invalid source-capability-type (0x3), offset 4
+        let encoded: [u8; 6] = [0x83, 0x04, 0x1C, 0x00, 0x00, 0x00];
+        let Err(bincode::error::DecodeError::UnexpectedVariant {
+            type_name,
+            allowed,
+            found,
+        }): Result<(Args, usize), _> = decode_from_slice(&encoded, standard().with_fixed_int_encoding())
+        else {
+            panic!("Expected UnexpectedVariant error");
+        };
+        assert_eq!(type_name, "SourceCapabilityType");
+        assert_eq!(
+            *allowed,
+            bincode::error::AllowedEnumVariants::Allowed(&[
+                SourceCapabilityType::Current as u32,
+                SourceCapabilityType::Advertised as u32,
+                SourceCapabilityType::Maximum as u32,
+            ])
+        );
+        assert_eq!(found, 0x03);
     }
 
     #[test]

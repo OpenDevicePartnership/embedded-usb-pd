@@ -212,6 +212,31 @@ mod test {
     }
 
     #[test]
+    fn test_decode_args_invalid_recipient() {
+        // Invalid recipient (0x7), connector 3, 2 requested alt modes, mode offset 1
+        let encoded: [u8; 6] = [0x07, 0x3, 0x1, 0x2, 0x0, 0x0];
+        let Err(bincode::error::DecodeError::UnexpectedVariant {
+            type_name,
+            allowed,
+            found,
+        }): Result<(Args, usize), _> = decode_from_slice(&encoded, standard().with_fixed_int_encoding())
+        else {
+            panic!("Expected UnexpectedVariant error");
+        };
+        assert_eq!(type_name, "Recipient");
+        assert_eq!(
+            *allowed,
+            bincode::error::AllowedEnumVariants::Allowed(&[
+                Recipient::Connector as u32,
+                Recipient::Sop as u32,
+                Recipient::SopP as u32,
+                Recipient::SopPp as u32,
+            ])
+        );
+        assert_eq!(found, 0x07);
+    }
+
+    #[test]
     fn test_decode_response_data() {
         // No particular meaning to these values
         let encoded: [u8; RESPONSE_DATA_LEN] = [0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x12, 0x34, 0x12, 0x34, 0x56, 0x78];

@@ -248,4 +248,21 @@ mod test {
             .set_power_args(false, 60, 1000);
         assert_eq!(decoded, expected);
     }
+
+    #[test]
+    fn test_decode_args_invalid_current() {
+        // Connector 0, invalid type_c_current value (0x4) at bits 18:16
+        let encoded: [u8; COMMAND_DATA_LEN] = [0x00, 0x00, 0x04, 0x00, 0x00, 0x00];
+        let Err(bincode::error::DecodeError::UnexpectedVariant {
+            type_name,
+            allowed,
+            found,
+        }): Result<(Args, usize), _> = decode_from_slice(&encoded, standard().with_fixed_int_encoding())
+        else {
+            panic!("Expected UnexpectedVariant error");
+        };
+        assert_eq!(type_name, "Current");
+        assert_eq!(*allowed, bincode::error::AllowedEnumVariants::Range { min: 0, max: 3 });
+        assert_eq!(found, 0x04);
+    }
 }
