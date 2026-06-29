@@ -162,7 +162,7 @@ impl Args {
     }
 }
 
-/// Invalid response message type error, contains the invalid response message type value
+/// Invalid args error
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum InvalidArgs {
