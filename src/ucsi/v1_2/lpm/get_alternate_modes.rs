@@ -9,6 +9,7 @@ use crate::ucsi::v1_2::lpm::InvalidRecipient;
 use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
 use crate::vdm::structured::Svid;
 use crate::vdm::AltModeId;
+use crate::PortId;
 
 /// Data length for the GET_ALTERNATE_MODES command response
 pub const RESPONSE_DATA_LEN: usize = 12;
@@ -49,53 +50,53 @@ impl defmt::Format for ArgBitsRaw {
 /// Command arguments
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Args {
+pub struct Args<T: PortId> {
     /// Recipient
     pub recipient: Recipient,
     /// Connector number
-    pub connector_number: u8,
+    pub connector_number: T,
     /// Alternate mode offset
     pub mode_offset: u8,
     /// Number of alternate modes
     pub num_modes: u8,
 }
 
-impl Default for Args {
+impl<T: PortId> Default for Args<T> {
     fn default() -> Self {
         Self {
             recipient: Recipient::Connector,
-            connector_number: 0,
+            connector_number: T::from(0),
             mode_offset: 0,
             num_modes: 0,
         }
     }
 }
 
-impl TryFrom<ArgBitsRaw> for Args {
+impl<T: PortId> TryFrom<ArgBitsRaw> for Args<T> {
     type Error = InvalidRecipient;
 
     fn try_from(raw: ArgBitsRaw) -> Result<Self, Self::Error> {
         Ok(Self {
             recipient: raw.recipient().try_into()?,
-            connector_number: raw.connector_number(),
+            connector_number: raw.connector_number().into(),
             mode_offset: raw.mode_offset(),
             num_modes: raw.num_modes(),
         })
     }
 }
 
-impl From<Args> for ArgBitsRaw {
-    fn from(args: Args) -> Self {
+impl<T: PortId> From<Args<T>> for ArgBitsRaw {
+    fn from(args: Args<T>) -> Self {
         let mut raw = ArgBitsRaw(0);
         raw.set_recipient(args.recipient.into());
-        raw.set_connector_number(args.connector_number);
+        raw.set_connector_number(args.connector_number.into());
         raw.set_mode_offset(args.mode_offset);
         raw.set_num_modes(args.num_modes);
         raw
     }
 }
 
-impl TryFrom<u32> for Args {
+impl<T: PortId> TryFrom<u32> for Args<T> {
     type Error = InvalidRecipient;
 
     fn try_from(raw: u32) -> Result<Self, Self::Error> {
@@ -103,8 +104,8 @@ impl TryFrom<u32> for Args {
     }
 }
 
-impl From<Args> for u32 {
-    fn from(args: Args) -> Self {
+impl<T: PortId> From<Args<T>> for u32 {
+    fn from(args: Args<T>) -> Self {
         ArgBitsRaw::from(args).0
     }
 }
@@ -131,8 +132,8 @@ impl defmt::Format for ArgsRaw {
     }
 }
 
-impl From<Args> for ArgsRaw {
-    fn from(args: Args) -> Self {
+impl<T: PortId> From<Args<T>> for ArgsRaw {
+    fn from(args: Args<T>) -> Self {
         Self {
             bits: U32LE::new(args.into()),
             ..Default::default()
@@ -140,7 +141,7 @@ impl From<Args> for ArgsRaw {
     }
 }
 
-impl TryFrom<ArgsRaw> for Args {
+impl<T: PortId> TryFrom<ArgsRaw> for Args<T> {
     type Error = InvalidRecipient;
 
     fn try_from(raw: ArgsRaw) -> Result<Self, Self::Error> {
@@ -245,6 +246,7 @@ impl From<ResponseDataRaw> for ResponseData {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::GlobalPortId;
 
     #[test]
     fn test_raw_len() {
@@ -256,9 +258,9 @@ mod test {
     fn test_args_raw_roundtrip() {
         // SOP on connector 3, mode offset 1, 2 requested alt modes
         let encoded: [u8; ArgsRaw::LEN] = [0x01, 0x03, 0x01, 0x02, 0x00, 0x00];
-        let expected = Args {
+        let expected: Args<GlobalPortId> = Args {
             recipient: Recipient::Sop,
-            connector_number: 3,
+            connector_number: GlobalPortId(3),
             mode_offset: 1,
             num_modes: 2,
         };
@@ -273,7 +275,7 @@ mod test {
         // Invalid recipient (0x7), connector 3, 2 requested alt modes, mode offset 1
         let encoded: [u8; ArgsRaw::LEN] = [0x07, 0x03, 0x01, 0x02, 0x00, 0x00];
         assert_eq!(
-            Args::try_from(bytemuck::must_cast::<_, ArgsRaw>(encoded)),
+            Args::<GlobalPortId>::try_from(bytemuck::must_cast::<_, ArgsRaw>(encoded)),
             Err(InvalidRecipient(0x07))
         );
     }

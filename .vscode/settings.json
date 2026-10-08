@@ -15,5 +15,6 @@
     ],
     "rust-analyzer.cargo.features": [
         "defmt",
+        "ucsi-v1_2"
     ]
 }

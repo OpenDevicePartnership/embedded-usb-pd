@@ -3,15 +3,6 @@
 version = 4
 
 [[package]]
-name = "bincode"
-version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36eaf5d7b090263e8150820482d5d93cd964a81e4019913c972f4edcc6edb740"
-dependencies = [
- "unty",
-]
-
-[[package]]
 name = "bitfield"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -117,7 +108,6 @@ dependencies = [
 name = "embedded-usb-pd"
 version = "0.1.0"
 dependencies = [
- "bincode",
  "bitfield",
  "bytemuck",
  "defmt 0.3.100",
@@ -210,9 +200,3 @@ name = "unicode-ident"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a5f39404a5da50712a4c1eecf25e90dd62b613502b7e925fd4e4d19b5c96512"
-
-[[package]]
-name = "unty"
-version = "0.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d49784317cd0d1ee7ec5c716dd598ec5b4483ea832a2dced265471cc0f690ae"

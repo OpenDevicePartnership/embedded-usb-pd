@@ -6,6 +6,7 @@ use pack1::U32LE;
 
 use crate::ucsi::v1_2::lpm::{InvalidRecipient, Recipient};
 use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
+use crate::PortId;
 
 /// Data length for the GET_PD_MESSAGE command response
 pub const RESPONSE_DATA_LEN: usize = 16;
@@ -97,9 +98,9 @@ impl From<MessageType> for u8 {
 /// Command arguments
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Args {
+pub struct Args<T: PortId> {
     /// Connector number
-    pub connector_number: u8,
+    pub connector_number: T,
     /// Recipient
     pub recipient: Recipient,
     /// Message offset
@@ -110,10 +111,10 @@ pub struct Args {
     pub message_type: MessageType,
 }
 
-impl Default for Args {
+impl<T: PortId> Default for Args<T> {
     fn default() -> Self {
         Self {
-            connector_number: 0,
+            connector_number: T::from(0),
             recipient: Recipient::Connector,
             message_offset: 0,
             num_bytes: 0,
@@ -132,12 +133,12 @@ pub enum InvalidArgs {
     InvalidMessageType(InvalidMessageType),
 }
 
-impl TryFrom<ArgBitsRaw> for Args {
+impl<T: PortId> TryFrom<ArgBitsRaw> for Args<T> {
     type Error = InvalidArgs;
 
     fn try_from(raw: ArgBitsRaw) -> Result<Self, Self::Error> {
         Ok(Self {
-            connector_number: raw.connector_number(),
+            connector_number: raw.connector_number().into(),
             recipient: raw.recipient().try_into().map_err(InvalidArgs::InvalidRecipient)?,
             message_offset: raw.message_offset(),
             num_bytes: raw.num_bytes(),
@@ -146,10 +147,10 @@ impl TryFrom<ArgBitsRaw> for Args {
     }
 }
 
-impl From<Args> for ArgBitsRaw {
-    fn from(args: Args) -> Self {
+impl<T: PortId> From<Args<T>> for ArgBitsRaw {
+    fn from(args: Args<T>) -> Self {
         let mut raw = ArgBitsRaw(0);
-        raw.set_connector_number(args.connector_number);
+        raw.set_connector_number(args.connector_number.into());
         raw.set_recipient(args.recipient.into());
         raw.set_message_offset(args.message_offset);
         raw.set_num_bytes(args.num_bytes);
@@ -158,7 +159,7 @@ impl From<Args> for ArgBitsRaw {
     }
 }
 
-impl TryFrom<u32> for Args {
+impl<T: PortId> TryFrom<u32> for Args<T> {
     type Error = InvalidArgs;
 
     fn try_from(raw: u32) -> Result<Self, Self::Error> {
@@ -166,8 +167,8 @@ impl TryFrom<u32> for Args {
     }
 }
 
-impl From<Args> for u32 {
-    fn from(args: Args) -> Self {
+impl<T: PortId> From<Args<T>> for u32 {
+    fn from(args: Args<T>) -> Self {
         ArgBitsRaw::from(args).0
     }
 }
@@ -194,8 +195,8 @@ impl defmt::Format for ArgsRaw {
     }
 }
 
-impl From<Args> for ArgsRaw {
-    fn from(args: Args) -> Self {
+impl<T: PortId> From<Args<T>> for ArgsRaw {
+    fn from(args: Args<T>) -> Self {
         Self {
             bits: U32LE::new(args.into()),
             ..Default::default()
@@ -203,7 +204,7 @@ impl From<Args> for ArgsRaw {
     }
 }
 
-impl TryFrom<ArgsRaw> for Args {
+impl<T: PortId> TryFrom<ArgsRaw> for Args<T> {
     type Error = InvalidArgs;
 
     fn try_from(raw: ArgsRaw) -> Result<Self, Self::Error> {
@@ -248,6 +249,7 @@ impl From<ResponseDataRaw> for ResponseData {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::GlobalPortId;
 
     #[test]
     fn test_raw_len() {
@@ -285,8 +287,8 @@ mod test {
     fn test_args_raw_roundtrip() {
         // SOP on connector 3, message offset 2, 1 byte, battery cap message type
         let encoded: [u8; ArgsRaw::LEN] = [0x83, 0x08, 0x01, 0x02, 0x00, 0x00];
-        let expected = Args {
-            connector_number: 3,
+        let expected: Args<GlobalPortId> = Args {
+            connector_number: GlobalPortId(3),
             recipient: Recipient::Sop,
             message_offset: 2,
             num_bytes: 1,
@@ -302,8 +304,8 @@ mod test {
     fn test_args_raw_roundtrip_recipient_cross_byte() {
         // SOP'' (0b011) on connector 0x7f, recipient bit 0 is in byte 0 and bit 1 in byte 1
         let encoded: [u8; ArgsRaw::LEN] = [0xff, 0x01, 0x00, 0x04, 0x00, 0x00];
-        let expected = Args {
-            connector_number: 0x7f,
+        let expected: Args<GlobalPortId> = Args {
+            connector_number: GlobalPortId(0x7f),
             recipient: Recipient::SopPp,
             message_offset: 0,
             num_bytes: 0,
@@ -320,7 +322,7 @@ mod test {
         // Invalid recipient on connector 3, message offset 2, 1 byte, battery cap message type
         let encoded: [u8; ArgsRaw::LEN] = [0x83, 0x0B, 0x01, 0x02, 0x00, 0x00];
         assert_eq!(
-            Args::try_from(bytemuck::must_cast::<_, ArgsRaw>(encoded)),
+            Args::<GlobalPortId>::try_from(bytemuck::must_cast::<_, ArgsRaw>(encoded)),
             Err(InvalidArgs::InvalidRecipient(InvalidRecipient(0x07)))
         );
     }
@@ -330,7 +332,7 @@ mod test {
         // Invalid message type on connector 3, message offset 14, 1 byte
         let encoded: [u8; ArgsRaw::LEN] = [0x83, 0x38, 0x01, 0x0f, 0x00, 0x00];
         assert_eq!(
-            Args::try_from(bytemuck::must_cast::<_, ArgsRaw>(encoded)),
+            Args::<GlobalPortId>::try_from(bytemuck::must_cast::<_, ArgsRaw>(encoded)),
             Err(InvalidArgs::InvalidMessageType(InvalidMessageType(0x0f)))
         );
     }

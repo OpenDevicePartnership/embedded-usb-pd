@@ -5,7 +5,7 @@ use bytemuck::{Pod, Zeroable};
 
 use crate::pdo::{MA50_UNIT, MV20_UNIT, MV25_UNIT, MW1000_UNIT, MW500_UNIT};
 use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
-use crate::{type_c, PowerRole};
+use crate::{type_c, PortId, PowerRole};
 
 /// Length of the raw argument bits, this command uses the entire payload
 pub const ARG_BITS_LEN: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>();
@@ -104,11 +104,11 @@ impl From<Current> for u8 {
 ///
 /// Power, current and voltage are stored in mW, mA and mV. Converting to the raw representation
 /// truncates them to the wire resolution selected by [`Self::lsb_control`].
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Args {
+pub struct Args<T: PortId> {
     /// Connector number
-    pub connector_number: u8,
+    pub connector_number: T,
     /// Power role
     pub power_role: PowerRole,
     /// Units for [`Self::max_power`] and [`Self::output_voltage`]
@@ -125,7 +125,21 @@ pub struct Args {
     pub output_voltage: u32,
 }
 
-impl TryFrom<ArgBitsRaw<[u8; ARG_BITS_LEN]>> for Args {
+impl<T: PortId> Default for Args<T> {
+    fn default() -> Self {
+        Self {
+            connector_number: T::from(0),
+            power_role: PowerRole::default(),
+            lsb_control: false,
+            max_power: 0,
+            type_c_current: Current::default(),
+            operating_current: 0,
+            output_voltage: 0,
+        }
+    }
+}
+
+impl<T: PortId> TryFrom<ArgBitsRaw<[u8; ARG_BITS_LEN]>> for Args<T> {
     type Error = InvalidCurrent;
 
     fn try_from(raw: ArgBitsRaw<[u8; ARG_BITS_LEN]>) -> Result<Self, Self::Error> {
@@ -137,7 +151,7 @@ impl TryFrom<ArgBitsRaw<[u8; ARG_BITS_LEN]>> for Args {
         };
 
         Ok(Self {
-            connector_number: raw.connector_number(),
+            connector_number: raw.connector_number().into(),
             power_role: if raw.power_role() {
                 PowerRole::Source
             } else {
@@ -152,10 +166,10 @@ impl TryFrom<ArgBitsRaw<[u8; ARG_BITS_LEN]>> for Args {
     }
 }
 
-impl TryFrom<Args> for ArgBitsRaw<[u8; ARG_BITS_LEN]> {
+impl<T: PortId> TryFrom<Args<T>> for ArgBitsRaw<[u8; ARG_BITS_LEN]> {
     type Error = OverflowError;
 
-    fn try_from(args: Args) -> Result<Self, Self::Error> {
+    fn try_from(args: Args<T>) -> Result<Self, Self::Error> {
         let (power_unit, voltage_unit) = if args.lsb_control {
             (MW1000_UNIT, MV25_UNIT)
         } else {
@@ -163,7 +177,7 @@ impl TryFrom<Args> for ArgBitsRaw<[u8; ARG_BITS_LEN]> {
         };
 
         let mut raw = ArgBitsRaw([0; ARG_BITS_LEN]);
-        raw.set_connector_number(args.connector_number);
+        raw.set_connector_number(args.connector_number.into());
         raw.set_power_role(args.power_role == PowerRole::Source);
         raw.set_lsb_control(args.lsb_control);
 
@@ -181,7 +195,7 @@ impl TryFrom<Args> for ArgBitsRaw<[u8; ARG_BITS_LEN]> {
         raw.set_operating_current(operating_current as u8);
 
         let output_voltage = args.output_voltage / u32::from(voltage_unit);
-        if output_voltage > u16::MAX as u32 {
+        if output_voltage > 0x0FFF {
             return Err(OverflowError::OutputVoltageOverflow(args.output_voltage));
         }
         raw.set_output_voltage(output_voltage as u16);
@@ -221,17 +235,17 @@ impl defmt::Format for ArgsRaw {
     }
 }
 
-impl TryFrom<Args> for ArgsRaw {
+impl<T: PortId> TryFrom<Args<T>> for ArgsRaw {
     type Error = OverflowError;
 
-    fn try_from(args: Args) -> Result<Self, Self::Error> {
+    fn try_from(args: Args<T>) -> Result<Self, Self::Error> {
         Ok(Self {
             bits: ArgBitsRaw::try_from(args)?.0,
         })
     }
 }
 
-impl TryFrom<ArgsRaw> for Args {
+impl<T: PortId> TryFrom<ArgsRaw> for Args<T> {
     type Error = InvalidCurrent;
 
     fn try_from(raw: ArgsRaw) -> Result<Self, Self::Error> {
@@ -242,6 +256,7 @@ impl TryFrom<ArgsRaw> for Args {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::GlobalPortId;
 
     #[test]
     fn test_raw_len() {
@@ -269,8 +284,8 @@ mod test {
         // 100 mA operating current
         // 60 mV output voltage
         let encoded: [u8; ArgsRaw::LEN] = [0x83, 0x02, 0x22, 0xC0, 0x00, 0x00];
-        let expected = Args {
-            connector_number: 3,
+        let expected: Args<GlobalPortId> = Args {
+            connector_number: GlobalPortId(3),
             power_role: PowerRole::Source,
             lsb_control: false,
             max_power: 1000,
@@ -289,8 +304,8 @@ mod test {
         // Sink on connector 1, 1W/25mV units, every multi-byte field at its maximum
         // Operating current spans bytes 2-3, output voltage spans bytes 3-5
         let encoded: [u8; ArgsRaw::LEN] = [0x01, 0xFF, 0xF8, 0xCF, 0xFF, 0x03];
-        let expected = Args {
-            connector_number: 1,
+        let expected: Args<GlobalPortId> = Args {
+            connector_number: GlobalPortId(1),
             power_role: PowerRole::Sink,
             lsb_control: true,
             max_power: 255 * MW1000_UNIT,
@@ -306,14 +321,14 @@ mod test {
 
     #[test]
     fn test_args_raw_truncates_to_units() {
-        let args = Args {
+        let args: Args<GlobalPortId> = Args {
             lsb_control: false,
             max_power: 1499,
             operating_current: 149,
             output_voltage: 59,
             ..Default::default()
         };
-        let expected = Args {
+        let expected: Args<GlobalPortId> = Args {
             lsb_control: false,
             max_power: 1000,
             operating_current: 100,
@@ -329,7 +344,7 @@ mod test {
         // Connector 0, invalid type_c_current value (0x4) at bits 18:16
         let encoded: [u8; ArgsRaw::LEN] = [0x00, 0x00, 0x04, 0x00, 0x00, 0x00];
         assert_eq!(
-            Args::try_from(bytemuck::must_cast::<_, ArgsRaw>(encoded)),
+            Args::<GlobalPortId>::try_from(bytemuck::must_cast::<_, ArgsRaw>(encoded)),
             Err(InvalidCurrent(0x04))
         );
     }
@@ -337,7 +352,7 @@ mod test {
     #[test]
     fn test_args_raw_invalid_max_power() {
         // Connector 0, max_power overflow
-        let args = Args {
+        let args: Args<GlobalPortId> = Args {
             // 256 * 500 mW
             max_power: 128000,
             ..Default::default()
@@ -348,7 +363,7 @@ mod test {
     #[test]
     fn test_args_raw_invalid_operating_current() {
         // Connector 0, operating_current overflow
-        let args = Args {
+        let args: Args<GlobalPortId> = Args {
             // 256 * 50 mA
             operating_current: 12800,
             ..Default::default()
@@ -362,7 +377,7 @@ mod test {
     #[test]
     fn test_args_raw_invalid_output_voltage() {
         // Connector 0, output_voltage overflow
-        let args = Args {
+        let args: Args<GlobalPortId> = Args {
             // 65535 * 20 mV
             output_voltage: 1310720,
             ..Default::default()

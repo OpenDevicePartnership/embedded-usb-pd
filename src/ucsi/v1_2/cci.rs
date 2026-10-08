@@ -3,9 +3,9 @@ use bitfield::bitfield;
 use crate::{GlobalPortId, LocalPortId, PortId};
 
 bitfield! {
-    /// Command status and connect change indicator, see UCSI spec 4.2
-    #[derive(Copy, Clone, PartialEq, Eq)]
-    struct CciRaw(u32);
+    /// Raw command status and connect change indicator, see UCSI spec 4.2
+    #[derive(Copy, Clone, Default, PartialEq, Eq)]
+    pub struct CciRaw(u32);
     impl Debug;
 
     /// End of message
@@ -37,184 +37,125 @@ bitfield! {
 }
 
 /// Higher-level wrapper around [`CciRaw`]
+///
+/// Only the bits defined by [`CciRaw`] are preserved, undefined bits are dropped when converting
+/// from the raw representation.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Cci<T: PortId> {
-    raw: CciRaw,
-    _marker: core::marker::PhantomData<T>,
+    /// End of message
+    pub eom: bool,
+    /// Connector change on the given port
+    pub connector_change: T,
+    /// Length of returned data
+    pub data_len: u8,
+    /// Vendor defined message
+    pub vendor_message: bool,
+    /// Security request
+    pub security_req: bool,
+    /// Firmware update request
+    pub fw_update_req: bool,
+    /// Command not supported
+    pub not_supported: bool,
+    /// Cancel complete
+    pub cancel_complete: bool,
+    /// PPM reset complete
+    pub reset_complete: bool,
+    /// Busy
+    pub busy: bool,
+    /// Acknowledgment command
+    pub ack_command: bool,
+    /// Command error
+    pub error: bool,
+    /// Command complete
+    pub cmd_complete: bool,
 }
 
 impl<T: PortId> Cci<T> {
-    /// Returns EOM status
-    pub fn eom(&self) -> bool {
-        self.raw.eom()
-    }
-
-    /// Set EOM status
-    pub fn set_eom(&mut self, eom: bool) -> &mut Self {
-        self.raw.set_eom(eom);
-        self
-    }
-
-    /// Returns connector change port
-    pub fn connector_change(&self) -> T {
-        self.raw.connector_change().into()
-    }
-
-    /// Set connector change port
-    pub fn set_connector_change(&mut self, port: T) -> &mut Self {
-        self.raw.set_connector_change(port.into());
-        self
-    }
-
-    /// Returns data length
-    pub fn data_len(&self) -> usize {
-        self.raw.data_len() as usize
-    }
-
-    /// Set data length
-    pub fn set_data_len(&mut self, len: usize) -> &mut Self {
-        self.raw.set_data_len(len as u8);
-        self
-    }
-
-    /// Returns vendor message status
-    pub fn vendor_message(&self) -> bool {
-        self.raw.vendor_message()
-    }
-
-    /// Set vendor message status
-    pub fn set_vendor_message(&mut self, vendor_message: bool) -> &mut Self {
-        self.raw.set_vendor_message(vendor_message);
-        self
-    }
-
-    /// Returns security request status
-    pub fn security_req(&self) -> bool {
-        self.raw.security_req()
-    }
-
-    /// Set security request status
-    pub fn set_security_req(&mut self, security_req: bool) -> &mut Self {
-        self.raw.set_security_req(security_req);
-        self
-    }
-
-    /// Returns firmware update request status
-    pub fn fw_update_req(&self) -> bool {
-        self.raw.fw_update_req()
-    }
-
-    /// Set firmware update request status
-    pub fn set_fw_update_req(&mut self, fw_update_req: bool) -> &mut Self {
-        self.raw.set_fw_update_req(fw_update_req);
-        self
-    }
-
-    /// Returns command not supported status
-    pub fn not_supported(&self) -> bool {
-        self.raw.not_supported()
-    }
-
-    /// Set command not supported status
-    pub fn set_not_supported(&mut self, not_supported: bool) -> &mut Self {
-        self.raw.set_not_supported(not_supported);
-        self
-    }
-
-    /// Returns cancel complete status
-    pub fn cancel_complete(&self) -> bool {
-        self.raw.cancel_complete()
-    }
-
-    /// Set cancel complete status
-    pub fn set_cancel_complete(&mut self, cancel_complete: bool) -> &mut Self {
-        self.raw.set_cancel_complete(cancel_complete);
-        self
-    }
-
-    /// Returns PPM reset complete status
-    pub fn reset_complete(&self) -> bool {
-        self.raw.reset_complete()
-    }
-
-    /// Set PPM reset complete status
-    pub fn set_reset_complete(&mut self, reset_complete: bool) -> &mut Self {
-        self.raw.set_reset_complete(reset_complete);
-        self
-    }
-
-    /// Returns busy status
-    pub fn busy(&self) -> bool {
-        self.raw.busy()
-    }
-
-    /// Set busy status
-    pub fn set_busy(&mut self, busy: bool) -> &mut Self {
-        self.raw.set_busy(busy);
-        self
-    }
-
-    /// Returns acknowledgment command status
-    pub fn ack_command(&self) -> bool {
-        self.raw.ack_command()
-    }
-
-    /// Set acknowledgment command status
-    pub fn set_ack_command(&mut self, ack_command: bool) -> &mut Self {
-        self.raw.set_ack_command(ack_command);
-        self
-    }
-
-    /// Returns command error status
-    pub fn error(&self) -> bool {
-        self.raw.error()
-    }
-
-    /// Set command error status
-    pub fn set_error(&mut self, error: bool) -> &mut Self {
-        self.raw.set_error(error);
-        self
-    }
-
-    /// Returns command complete status
-    pub fn cmd_complete(&self) -> bool {
-        self.raw.cmd_complete()
-    }
-
-    /// Set command complete status
-    pub fn set_cmd_complete(&mut self, cmd_complete: bool) -> &mut Self {
-        self.raw.set_cmd_complete(cmd_complete);
-        self
-    }
-
     /// Create a new CCI with command complete set
     pub fn new_cmd_complete() -> Self {
-        *Cci::default().set_cmd_complete(true)
+        Self {
+            cmd_complete: true,
+            ..Default::default()
+        }
     }
 
     /// Create a new CCI with busy set
     pub fn new_busy() -> Self {
-        *Cci::default().set_busy(true)
+        Self {
+            busy: true,
+            ..Default::default()
+        }
     }
 
     /// Create a new CCI with reset complete set
     pub fn new_reset_complete() -> Self {
-        *Cci::default().set_reset_complete(true)
+        Self {
+            reset_complete: true,
+            ..Default::default()
+        }
     }
 
     /// Create a new CCI with error set
     pub fn new_error() -> Self {
-        *Cci::default().set_error(true)
+        Self {
+            error: true,
+            ..Default::default()
+        }
     }
 }
 
 impl<T: PortId> From<CciRaw> for Cci<T> {
     fn from(raw: CciRaw) -> Self {
-        Cci {
-            raw,
-            _marker: core::marker::PhantomData,
+        Self {
+            eom: raw.eom(),
+            connector_change: raw.connector_change().into(),
+            data_len: raw.data_len(),
+            vendor_message: raw.vendor_message(),
+            security_req: raw.security_req(),
+            fw_update_req: raw.fw_update_req(),
+            not_supported: raw.not_supported(),
+            cancel_complete: raw.cancel_complete(),
+            reset_complete: raw.reset_complete(),
+            busy: raw.busy(),
+            ack_command: raw.ack_command(),
+            error: raw.error(),
+            cmd_complete: raw.cmd_complete(),
         }
+    }
+}
+
+impl<T: PortId> From<Cci<T>> for CciRaw {
+    fn from(cci: Cci<T>) -> Self {
+        let mut raw = CciRaw(0);
+
+        raw.set_eom(cci.eom);
+        raw.set_connector_change(cci.connector_change.into());
+        raw.set_data_len(cci.data_len);
+        raw.set_vendor_message(cci.vendor_message);
+        raw.set_security_req(cci.security_req);
+        raw.set_fw_update_req(cci.fw_update_req);
+        raw.set_not_supported(cci.not_supported);
+        raw.set_cancel_complete(cci.cancel_complete);
+        raw.set_reset_complete(cci.reset_complete);
+        raw.set_busy(cci.busy);
+        raw.set_ack_command(cci.ack_command);
+        raw.set_error(cci.error);
+        raw.set_cmd_complete(cci.cmd_complete);
+
+        raw
+    }
+}
+
+impl From<u32> for CciRaw {
+    fn from(value: u32) -> Self {
+        CciRaw(value)
+    }
+}
+
+impl From<CciRaw> for u32 {
+    fn from(raw: CciRaw) -> Self {
+        raw.0
     }
 }
 
@@ -226,7 +167,7 @@ impl<T: PortId> From<u32> for Cci<T> {
 
 impl<T: PortId> From<Cci<T>> for u32 {
     fn from(cci: Cci<T>) -> Self {
-        cci.raw.0
+        CciRaw::from(cci).0
     }
 }
 
@@ -260,5 +201,119 @@ impl defmt::Format for CciRaw {
             self.error(),
             self.cmd_complete(),
         )
+    }
+}
+
+/// A CCI variant without a data len field around [`Cci`].
+///
+/// The data len field comes from the [`ResponseData`] struct because that works better from a modularity standpoint. But it actually
+/// needs to go in the CCI. This struct omits it to provide a compile time check that the data len is not accidentally used from
+/// the CCI itself. This struct cannot be converted to/from a CciRaw directly.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct CciNoDataLen<T: PortId> {
+    /// End of message
+    pub eom: bool,
+    /// Connector change on the given port
+    pub connector_change: T,
+    /// Vendor defined message
+    pub vendor_message: bool,
+    /// Security request
+    pub security_req: bool,
+    /// Firmware update request
+    pub fw_update_req: bool,
+    /// Command not supported
+    pub not_supported: bool,
+    /// Cancel complete
+    pub cancel_complete: bool,
+    /// PPM reset complete
+    pub reset_complete: bool,
+    /// Busy
+    pub busy: bool,
+    /// Acknowledgment command
+    pub ack_command: bool,
+    /// Command error
+    pub error: bool,
+    /// Command complete
+    pub cmd_complete: bool,
+}
+
+impl<T: PortId> CciNoDataLen<T> {
+    pub fn into_cci(self, data_len: u8) -> Cci<T> {
+        Cci {
+            eom: self.eom,
+            connector_change: self.connector_change,
+            vendor_message: self.vendor_message,
+            security_req: self.security_req,
+            fw_update_req: self.fw_update_req,
+            not_supported: self.not_supported,
+            cancel_complete: self.cancel_complete,
+            reset_complete: self.reset_complete,
+            busy: self.busy,
+            ack_command: self.ack_command,
+            error: self.error,
+            cmd_complete: self.cmd_complete,
+            data_len,
+        }
+    }
+}
+
+impl<T: PortId> From<Cci<T>> for CciNoDataLen<T> {
+    fn from(cci: Cci<T>) -> Self {
+        Self {
+            eom: cci.eom,
+            connector_change: cci.connector_change,
+            vendor_message: cci.vendor_message,
+            security_req: cci.security_req,
+            fw_update_req: cci.fw_update_req,
+            not_supported: cci.not_supported,
+            cancel_complete: cci.cancel_complete,
+            reset_complete: cci.reset_complete,
+            busy: cci.busy,
+            ack_command: cci.ack_command,
+            error: cci.error,
+            cmd_complete: cci.cmd_complete,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// All bits defined by [`CciRaw`]
+    ///
+    /// Bits 22:17 are reserved.
+    const DEFINED_BITS: u32 = 0xFF81_FFFF;
+
+    #[test]
+    fn test_cci_defined_bits_roundtrip() {
+        let cci = GlobalCci::from(DEFINED_BITS);
+        assert_eq!(u32::from(cci), DEFINED_BITS);
+    }
+
+    /// A high-level CCI only round-trips the bits defined by [`CciRaw`]
+    #[test]
+    fn test_cci_undefined_bits_dropped() {
+        let cci = GlobalCci::from(u32::MAX);
+        assert_eq!(u32::from(cci), DEFINED_BITS);
+    }
+
+    #[test]
+    fn test_cci_fields() {
+        let cci = GlobalCci::from(0x8000_0502);
+        assert!(!cci.eom);
+        assert_eq!(cci.connector_change, GlobalPortId(1));
+        assert_eq!(cci.data_len, 5);
+        assert!(cci.cmd_complete);
+        assert!(!cci.error);
+    }
+
+    #[test]
+    fn test_cci_constructors() {
+        assert!(GlobalCci::new_cmd_complete().cmd_complete);
+        assert!(GlobalCci::new_busy().busy);
+        assert!(GlobalCci::new_reset_complete().reset_complete);
+        assert!(GlobalCci::new_error().error);
     }
 }

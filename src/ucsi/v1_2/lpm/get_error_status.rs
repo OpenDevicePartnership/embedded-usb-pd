@@ -6,6 +6,7 @@ use pack1::U16LE;
 
 use crate::ucsi::v1_2::lpm::ConnectorNumberRaw;
 use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
+use crate::PortId;
 
 /// Data length for the GET_CONNECTOR_STATUS command response
 pub const RESPONSE_DATA_LEN: usize = MAX_VENDOR_DATA_LEN + size_of::<InformationRaw>();
@@ -15,7 +16,23 @@ pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() -
 /// Maximum support vendor-data length
 pub const MAX_VENDOR_DATA_LEN: usize = 14;
 
-/// Raw wire format of the command arguments
+/// Command arguments
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct Args<T: PortId> {
+    /// Connector number
+    pub connector_number: T,
+}
+
+impl<T: PortId> Default for Args<T> {
+    fn default() -> Self {
+        Self {
+            connector_number: T::from(0),
+        }
+    }
+}
+
+/// Raw wire format of [`Args`]
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Zeroable, Pod)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -31,11 +48,11 @@ impl ArgsRaw {
     pub const LEN: usize = size_of::<Self>();
 }
 
-impl From<u8> for ArgsRaw {
-    /// Creates raw arguments for the given connector number
-    fn from(connector_number: u8) -> Self {
+impl<T: PortId> From<Args<T>> for ArgsRaw {
+    /// Converts the arguments into their raw wire format
+    fn from(args: Args<T>) -> Self {
         let mut connector = ConnectorNumberRaw::default();
-        connector.set_connector_number(connector_number);
+        connector.set_connector_number(args.connector_number.into());
         Self {
             connector: connector.0,
             ..Default::default()
@@ -43,10 +60,12 @@ impl From<u8> for ArgsRaw {
     }
 }
 
-impl From<ArgsRaw> for u8 {
-    /// Returns the connector number
+impl<T: PortId> From<ArgsRaw> for Args<T> {
+    /// Reconstructs the arguments from their raw wire format
     fn from(raw: ArgsRaw) -> Self {
-        ConnectorNumberRaw(raw.connector).connector_number()
+        Self {
+            connector_number: ConnectorNumberRaw(raw.connector).connector_number().into(),
+        }
     }
 }
 
@@ -279,6 +298,7 @@ impl From<ResponseData> for ResponseDataRaw {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::GlobalPortId;
 
     /// Mask of all bits defined by [`InformationRaw`]
     const DEFINED_BITS: u16 = 0x7FFF;
@@ -292,10 +312,15 @@ mod test {
     #[test]
     fn test_args_raw_roundtrip() {
         let encoded: [u8; ArgsRaw::LEN] = [0x03, 0x00, 0x00, 0x00, 0x00, 0x00];
-        let raw = ArgsRaw::from(3);
+        let args: Args<GlobalPortId> = Args {
+            connector_number: GlobalPortId(3),
+        };
 
-        assert_eq!(bytemuck::must_cast::<_, [u8; ArgsRaw::LEN]>(raw), encoded);
-        assert_eq!(u8::from(bytemuck::must_cast::<_, ArgsRaw>(encoded)), 3);
+        assert_eq!(
+            bytemuck::must_cast::<_, [u8; ArgsRaw::LEN]>(ArgsRaw::from(args)),
+            encoded
+        );
+        assert_eq!(Args::from(bytemuck::must_cast::<_, ArgsRaw>(encoded)), args);
     }
 
     #[test]

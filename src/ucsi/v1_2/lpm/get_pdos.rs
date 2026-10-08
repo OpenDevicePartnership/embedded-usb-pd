@@ -4,7 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use pack1::U32LE;
 
 use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
-use crate::PowerRole;
+use crate::{PortId, PowerRole};
 
 /// Command padding
 pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() - size_of::<ArgBitsRaw>();
@@ -101,9 +101,9 @@ pub struct InvalidNumPdos(pub u8);
 /// Command arguments
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Args {
+pub struct Args<T: PortId> {
     /// Connector number
-    pub connector_number: u8,
+    pub connector_number: T,
     /// Retrieve the partner's PDOs instead of the connector's
     pub partner: bool,
     /// PDO offset
@@ -116,10 +116,10 @@ pub struct Args {
     pub source_capability_type: SourceCapabilityType,
 }
 
-impl Default for Args {
+impl<T: PortId> Default for Args<T> {
     fn default() -> Self {
         Self {
-            connector_number: 0,
+            connector_number: T::from(0),
             partner: false,
             pdo_offset: 0,
             num_pdos: 1,
@@ -129,12 +129,12 @@ impl Default for Args {
     }
 }
 
-impl TryFrom<ArgBitsRaw> for Args {
+impl<T: PortId> TryFrom<ArgBitsRaw> for Args<T> {
     type Error = InvalidSourceCapabilityType;
 
     fn try_from(raw: ArgBitsRaw) -> Result<Self, Self::Error> {
         Ok(Self {
-            connector_number: raw.connector_number(),
+            connector_number: raw.connector_number().into(),
             partner: raw.partner(),
             pdo_offset: raw.pdo_offset(),
             // +1 as per UCSI spec
@@ -149,16 +149,16 @@ impl TryFrom<ArgBitsRaw> for Args {
     }
 }
 
-impl TryFrom<Args> for ArgBitsRaw {
+impl<T: PortId> TryFrom<Args<T>> for ArgBitsRaw {
     type Error = InvalidNumPdos;
 
-    fn try_from(args: Args) -> Result<Self, Self::Error> {
+    fn try_from(args: Args<T>) -> Result<Self, Self::Error> {
         if args.num_pdos == 0 || args.num_pdos > MAX_PDOS as u8 {
             return Err(InvalidNumPdos(args.num_pdos));
         }
 
         let mut raw = ArgBitsRaw(0);
-        raw.set_connector_number(args.connector_number);
+        raw.set_connector_number(args.connector_number.into());
         raw.set_partner(args.partner);
         raw.set_pdo_offset(args.pdo_offset);
         // -1 as per UCSI spec
@@ -169,7 +169,7 @@ impl TryFrom<Args> for ArgBitsRaw {
     }
 }
 
-impl TryFrom<u32> for Args {
+impl<T: PortId> TryFrom<u32> for Args<T> {
     type Error = InvalidSourceCapabilityType;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
@@ -199,10 +199,10 @@ impl defmt::Format for ArgsRaw {
     }
 }
 
-impl TryFrom<Args> for ArgsRaw {
+impl<T: PortId> TryFrom<Args<T>> for ArgsRaw {
     type Error = InvalidNumPdos;
 
-    fn try_from(args: Args) -> Result<Self, Self::Error> {
+    fn try_from(args: Args<T>) -> Result<Self, Self::Error> {
         Ok(Self {
             bits: U32LE::new(ArgBitsRaw::try_from(args)?.0),
             ..Default::default()
@@ -210,7 +210,7 @@ impl TryFrom<Args> for ArgsRaw {
     }
 }
 
-impl TryFrom<ArgsRaw> for Args {
+impl<T: PortId> TryFrom<ArgsRaw> for Args<T> {
     type Error = InvalidSourceCapabilityType;
 
     fn try_from(raw: ArgsRaw) -> Result<Self, Self::Error> {
@@ -285,6 +285,7 @@ impl From<ResponseDataRaw> for ResponseData {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::GlobalPortId;
 
     #[test]
     fn test_raw_len() {
@@ -313,8 +314,8 @@ mod test {
     fn test_args_raw_roundtrip() {
         // Partner, connector 3, 1 PDO, source, maximum capabilities, offset 4
         let encoded: [u8; ArgsRaw::LEN] = [0x83, 0x04, 0x14, 0x00, 0x00, 0x00];
-        let expected = Args {
-            connector_number: 3,
+        let expected: Args<GlobalPortId> = Args {
+            connector_number: GlobalPortId(3),
             partner: true,
             pdo_offset: 4,
             num_pdos: 1,
@@ -331,8 +332,8 @@ mod test {
     fn test_args_raw_max_num_pdos() {
         // Sink, connector 1, 4 PDOs
         let encoded: [u8; ArgsRaw::LEN] = [0x01, 0x00, 0x03, 0x00, 0x00, 0x00];
-        let expected = Args {
-            connector_number: 1,
+        let expected: Args<GlobalPortId> = Args {
+            connector_number: GlobalPortId(1),
             num_pdos: MAX_PDOS as u8,
             ..Default::default()
         };
@@ -345,7 +346,7 @@ mod test {
     #[test]
     fn test_args_raw_invalid_num_pdos() {
         for num_pdos in [0, MAX_PDOS as u8 + 1, u8::MAX] {
-            let args = Args {
+            let args: Args<GlobalPortId> = Args {
                 num_pdos,
                 ..Default::default()
             };
@@ -358,7 +359,7 @@ mod test {
         // Partner, connector 3, 1 PDO, source, invalid source-capability-type (0x3), offset 4
         let encoded: [u8; ArgsRaw::LEN] = [0x83, 0x04, 0x1C, 0x00, 0x00, 0x00];
         assert_eq!(
-            Args::try_from(bytemuck::must_cast::<_, ArgsRaw>(encoded)),
+            Args::<GlobalPortId>::try_from(bytemuck::must_cast::<_, ArgsRaw>(encoded)),
             Err(InvalidSourceCapabilityType(0x03))
         );
     }

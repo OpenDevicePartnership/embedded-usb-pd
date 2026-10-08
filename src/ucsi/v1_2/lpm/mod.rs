@@ -1,6 +1,6 @@
 use bitfield::bitfield;
 
-use crate::ucsi::v1_2::{cci, CommandHeaderRaw, CommandType, InvalidCommandType, COMMAND_LEN};
+use crate::ucsi::v1_2::{cci, CommandHeaderRaw, CommandRaw, CommandType, InvalidCommandType, COMMAND_LEN};
 use crate::{GlobalPortId, LocalPortId, PortId};
 
 pub mod connector_reset;
@@ -114,46 +114,93 @@ impl From<get_connector_status::InvalidResponseData> for InvalidResponseData {
 }
 
 /// LPM command data
+///
+/// Every LPM command targets a connector, so the connector number is carried by
+/// each variant's arguments rather than alongside them.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum CommandData {
-    ConnectorReset(connector_reset::Args),
-    GetConnectorStatus,
-    GetConnectorCapability,
-    SetPowerLevel(set_power_level::Args),
-    SetNewCam(set_new_cam::Args),
-    GetErrorStatus,
-    SetCcom(set_ccom::Args),
-    SetUor(set_uor::Args),
-    SetPdr(set_pdr::Args),
-    GetAlternateModes(get_alternate_modes::Args),
-    GetCamSupported,
-    GetCurrentCam,
-    GetPdos(get_pdos::Args),
-    GetCableProperty,
-    GetPdMessage(get_pd_message::Args),
+pub enum CommandData<T: PortId> {
+    ConnectorReset(connector_reset::Args<T>),
+    GetConnectorStatus(get_connector_status::Args<T>),
+    GetConnectorCapability(get_connector_capability::Args<T>),
+    SetPowerLevel(set_power_level::Args<T>),
+    SetNewCam(set_new_cam::Args<T>),
+    GetErrorStatus(get_error_status::Args<T>),
+    SetCcom(set_ccom::Args<T>),
+    SetUor(set_uor::Args<T>),
+    SetPdr(set_pdr::Args<T>),
+    GetAlternateModes(get_alternate_modes::Args<T>),
+    GetCamSupported(get_cam_supported::Args<T>),
+    GetCurrentCam(get_current_cam::Args<T>),
+    GetPdos(get_pdos::Args<T>),
+    GetCableProperty(get_cable_property::Args<T>),
+    GetPdMessage(get_pd_message::Args<T>),
 }
 
-impl CommandData {
+impl<T: PortId> CommandData<T> {
     /// Returns the command type for this command
     pub const fn command_type(&self) -> CommandType {
         match self {
             CommandData::ConnectorReset(_) => CommandType::ConnectorReset,
-            CommandData::GetConnectorStatus => CommandType::GetConnectorStatus,
-            CommandData::GetConnectorCapability => CommandType::GetConnectorCapability,
+            CommandData::GetConnectorStatus(_) => CommandType::GetConnectorStatus,
+            CommandData::GetConnectorCapability(_) => CommandType::GetConnectorCapability,
             CommandData::SetPowerLevel(_) => CommandType::SetPowerLevel,
             CommandData::SetNewCam(_) => CommandType::SetNewCam,
-            CommandData::GetErrorStatus => CommandType::GetErrorStatus,
+            CommandData::GetErrorStatus(_) => CommandType::GetErrorStatus,
             CommandData::SetCcom(_) => CommandType::SetCcom,
             CommandData::SetUor(_) => CommandType::SetUor,
             CommandData::SetPdr(_) => CommandType::SetPdr,
             CommandData::GetAlternateModes(_) => CommandType::GetAlternateModes,
-            CommandData::GetCamSupported => CommandType::GetCamSupported,
-            CommandData::GetCurrentCam => CommandType::GetCurrentCam,
+            CommandData::GetCamSupported(_) => CommandType::GetCamSupported,
+            CommandData::GetCurrentCam(_) => CommandType::GetCurrentCam,
             CommandData::GetPdos(_) => CommandType::GetPdos,
-            CommandData::GetCableProperty => CommandType::GetCableProperty,
+            CommandData::GetCableProperty(_) => CommandType::GetCableProperty,
             CommandData::GetPdMessage(_) => CommandType::GetPdMessage,
         }
+    }
+
+    /// Returns the connector this command targets
+    pub fn connector_number(&self) -> T {
+        match self {
+            CommandData::ConnectorReset(args) => args.connector_number,
+            CommandData::GetConnectorStatus(args) => args.connector_number,
+            CommandData::GetConnectorCapability(args) => args.connector_number,
+            CommandData::SetPowerLevel(args) => args.connector_number,
+            CommandData::SetNewCam(args) => args.connector_number,
+            CommandData::GetErrorStatus(args) => args.connector_number,
+            CommandData::SetCcom(args) => args.connector_number,
+            CommandData::SetUor(args) => args.connector_number,
+            CommandData::SetPdr(args) => args.connector_number,
+            CommandData::GetAlternateModes(args) => args.connector_number,
+            CommandData::GetCamSupported(args) => args.connector_number,
+            CommandData::GetCurrentCam(args) => args.connector_number,
+            CommandData::GetPdos(args) => args.connector_number,
+            CommandData::GetCableProperty(args) => args.connector_number,
+            CommandData::GetPdMessage(args) => args.connector_number,
+        }
+    }
+
+    /// Sets the connector this command targets
+    pub fn set_connector_number(&mut self, connector: T) -> &mut Self {
+        match self {
+            CommandData::ConnectorReset(args) => args.connector_number = connector,
+            CommandData::GetConnectorStatus(args) => args.connector_number = connector,
+            CommandData::GetConnectorCapability(args) => args.connector_number = connector,
+            CommandData::SetPowerLevel(args) => args.connector_number = connector,
+            CommandData::SetNewCam(args) => args.connector_number = connector,
+            CommandData::GetErrorStatus(args) => args.connector_number = connector,
+            CommandData::SetCcom(args) => args.connector_number = connector,
+            CommandData::SetUor(args) => args.connector_number = connector,
+            CommandData::SetPdr(args) => args.connector_number = connector,
+            CommandData::GetAlternateModes(args) => args.connector_number = connector,
+            CommandData::GetCamSupported(args) => args.connector_number = connector,
+            CommandData::GetCurrentCam(args) => args.connector_number = connector,
+            CommandData::GetPdos(args) => args.connector_number = connector,
+            CommandData::GetCableProperty(args) => args.connector_number = connector,
+            CommandData::GetPdMessage(args) => args.connector_number = connector,
+        }
+
+        self
     }
 }
 
@@ -161,62 +208,30 @@ impl CommandData {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Command<T: PortId> {
-    port: T,
-    operation: CommandData,
+    operation: CommandData<T>,
 }
 
 impl<T: PortId> Command<T> {
-    pub const fn new(port: T, operation: CommandData) -> Self {
-        Command { port, operation }
+    pub const fn new(operation: CommandData<T>) -> Self {
+        Command { operation }
     }
 
-    pub fn port(&self) -> T {
-        self.port
+    /// Returns the connector this command targets
+    pub fn connector_number(&self) -> T {
+        self.operation.connector_number()
     }
 
-    pub fn set_port(&mut self, port: T) -> &mut Self {
-        self.port = port;
-        // These commands have the connector number as part of their arguments, update them too
-        // TODO: Figure out how to remove this
-        match self.operation {
-            CommandData::ConnectorReset(ref mut args) => {
-                args.connector_number = self.port.into();
-            }
-            CommandData::SetPowerLevel(ref mut args) => {
-                args.connector_number = self.port.into();
-            }
-            CommandData::SetNewCam(ref mut args) => {
-                args.connector_number = self.port.into();
-            }
-            CommandData::SetCcom(ref mut args) => {
-                args.connector_number = self.port.into();
-            }
-            CommandData::SetUor(ref mut args) => {
-                args.connector_number = self.port.into();
-            }
-            CommandData::SetPdr(ref mut args) => {
-                args.connector_number = self.port.into();
-            }
-            CommandData::GetAlternateModes(ref mut args) => {
-                args.connector_number = self.port.into();
-            }
-            CommandData::GetPdos(ref mut args) => {
-                args.connector_number = self.port.into();
-            }
-            CommandData::GetPdMessage(ref mut args) => {
-                args.connector_number = self.port.into();
-            }
-            _ => {}
-        }
-
+    /// Sets the connector this command targets
+    pub fn set_connector_number(&mut self, connector: T) -> &mut Self {
+        self.operation.set_connector_number(connector);
         self
     }
 
-    pub fn operation(&self) -> CommandData {
+    pub fn operation(&self) -> CommandData<T> {
         self.operation
     }
 
-    pub fn set_operation(&mut self, operation: CommandData) -> &mut Self {
+    pub fn set_operation(&mut self, operation: CommandData<T>) -> &mut Self {
         self.operation = operation;
         self
     }
@@ -230,159 +245,109 @@ impl<T: PortId> Command<T> {
     pub const fn command_type(&self) -> CommandType {
         self.operation.command_type()
     }
+}
 
-    /// Converts this command into its raw payload bytes
+impl<T: PortId> TryFrom<Command<T>> for CommandRaw {
+    type Error = InvalidCommand;
+
+    /// Converts a command into its raw wire format
     ///
     /// Returns an error if the arguments cannot be represented on the wire.
-    pub fn to_payload(&self) -> Result<[u8; COMMAND_PAYLOAD_LEN], InvalidCommand> {
-        // Commands that combine the connector number with their arguments handle it themselves
-        let raw_port: u8 = self.port.into();
-        match self.operation {
-            CommandData::ConnectorReset(args) => Ok(bytemuck::must_cast(connector_reset::ArgsRaw::from(args))),
-            CommandData::GetConnectorStatus => Ok(bytemuck::must_cast(get_connector_status::ArgsRaw::from(raw_port))),
-            CommandData::GetConnectorCapability => {
-                Ok(bytemuck::must_cast(get_connector_capability::ArgsRaw::from(raw_port)))
+    fn try_from(command: Command<T>) -> Result<Self, Self::Error> {
+        let payload = match command.operation {
+            CommandData::ConnectorReset(args) => bytemuck::must_cast(connector_reset::ArgsRaw::from(args)),
+            CommandData::GetConnectorStatus(args) => bytemuck::must_cast(get_connector_status::ArgsRaw::from(args)),
+            CommandData::GetConnectorCapability(args) => {
+                bytemuck::must_cast(get_connector_capability::ArgsRaw::from(args))
             }
-            CommandData::SetPowerLevel(args) => Ok(bytemuck::must_cast(set_power_level::ArgsRaw::try_from(args)?)),
-            CommandData::SetNewCam(args) => Ok(bytemuck::must_cast(set_new_cam::ArgsRaw::from(args))),
-            CommandData::GetErrorStatus => Ok(bytemuck::must_cast(get_error_status::ArgsRaw::from(raw_port))),
-            CommandData::SetCcom(args) => Ok(bytemuck::must_cast(set_ccom::ArgsRaw::from(args))),
-            CommandData::SetUor(args) => Ok(bytemuck::must_cast(set_uor::ArgsRaw::from(args))),
-            CommandData::SetPdr(args) => Ok(bytemuck::must_cast(set_pdr::ArgsRaw::from(args))),
-            // This command has a different format without a leading port number
-            // TODO: Figure out if this can stay an exception or if each command is responsible for pulling its port number.
-            CommandData::GetAlternateModes(args) => Ok(bytemuck::must_cast(get_alternate_modes::ArgsRaw::from(args))),
-            CommandData::GetCamSupported => Ok(bytemuck::must_cast(get_cam_supported::ArgsRaw::from(raw_port))),
-            CommandData::GetCurrentCam => Ok(bytemuck::must_cast(get_current_cam::ArgsRaw::from(raw_port))),
-            CommandData::GetPdos(args) => Ok(bytemuck::must_cast(get_pdos::ArgsRaw::try_from(args)?)),
-            CommandData::GetCableProperty => Ok(bytemuck::must_cast(get_cable_property::ArgsRaw::from(raw_port))),
-            CommandData::GetPdMessage(args) => Ok(bytemuck::must_cast(get_pd_message::ArgsRaw::from(args))),
-        }
-    }
+            CommandData::SetPowerLevel(args) => bytemuck::must_cast(set_power_level::ArgsRaw::try_from(args)?),
+            CommandData::SetNewCam(args) => bytemuck::must_cast(set_new_cam::ArgsRaw::from(args)),
+            CommandData::GetErrorStatus(args) => bytemuck::must_cast(get_error_status::ArgsRaw::from(args)),
+            CommandData::SetCcom(args) => bytemuck::must_cast(set_ccom::ArgsRaw::from(args)),
+            CommandData::SetUor(args) => bytemuck::must_cast(set_uor::ArgsRaw::from(args)),
+            CommandData::SetPdr(args) => bytemuck::must_cast(set_pdr::ArgsRaw::from(args)),
+            CommandData::GetAlternateModes(args) => bytemuck::must_cast(get_alternate_modes::ArgsRaw::from(args)),
+            CommandData::GetCamSupported(args) => bytemuck::must_cast(get_cam_supported::ArgsRaw::from(args)),
+            CommandData::GetCurrentCam(args) => bytemuck::must_cast(get_current_cam::ArgsRaw::from(args)),
+            CommandData::GetPdos(args) => bytemuck::must_cast(get_pdos::ArgsRaw::try_from(args)?),
+            CommandData::GetCableProperty(args) => bytemuck::must_cast(get_cable_property::ArgsRaw::from(args)),
+            CommandData::GetPdMessage(args) => bytemuck::must_cast(get_pd_message::ArgsRaw::from(args)),
+        };
 
-    /// Reconstructs a command from its command type and raw payload bytes
+        Ok(CommandRaw {
+            command: command.command_type().into(),
+            // Data length is only non-zero for vendor-defined commands, none of which are modelled here
+            data_len: 0,
+            payload,
+        })
+    }
+}
+
+impl<T: PortId> TryFrom<CommandRaw> for Command<T> {
+    type Error = InvalidCommand;
+
+    /// Reconstructs a command from its raw wire format
     ///
-    /// Returns an error if `command_type` is not an LPM command or if the
+    /// Returns an error if the command type is not an LPM command or if the
     /// payload does not contain valid arguments.
-    pub fn from_payload(command_type: CommandType, payload: [u8; COMMAND_PAYLOAD_LEN]) -> Result<Self, InvalidCommand> {
-        match command_type {
+    fn try_from(raw: CommandRaw) -> Result<Self, Self::Error> {
+        let payload = raw.payload;
+        let operation = match CommandType::try_from(raw.command)? {
             CommandType::ConnectorReset => {
-                let args = connector_reset::Args::from(bytemuck::must_cast::<_, connector_reset::ArgsRaw>(payload));
-                Ok(Command {
-                    port: From::from(args.connector_number),
-                    operation: CommandData::ConnectorReset(args),
-                })
+                CommandData::ConnectorReset(bytemuck::must_cast::<_, connector_reset::ArgsRaw>(payload).into())
             }
             CommandType::GetConnectorStatus => {
-                let connector_number = u8::from(bytemuck::must_cast::<_, get_connector_status::ArgsRaw>(payload));
-                Ok(Command {
-                    port: From::from(connector_number),
-                    operation: CommandData::GetConnectorStatus,
-                })
+                CommandData::GetConnectorStatus(bytemuck::must_cast::<_, get_connector_status::ArgsRaw>(payload).into())
             }
-            CommandType::GetConnectorCapability => {
-                let connector_number = u8::from(bytemuck::must_cast::<_, get_connector_capability::ArgsRaw>(payload));
-                Ok(Command {
-                    port: From::from(connector_number),
-                    operation: CommandData::GetConnectorCapability,
-                })
-            }
+            CommandType::GetConnectorCapability => CommandData::GetConnectorCapability(
+                bytemuck::must_cast::<_, get_connector_capability::ArgsRaw>(payload).into(),
+            ),
             CommandType::SetPowerLevel => {
-                let args =
-                    set_power_level::Args::try_from(bytemuck::must_cast::<_, set_power_level::ArgsRaw>(payload))?;
-                Ok(Command {
-                    port: From::from(args.connector_number),
-                    operation: CommandData::SetPowerLevel(args),
-                })
+                CommandData::SetPowerLevel(bytemuck::must_cast::<_, set_power_level::ArgsRaw>(payload).try_into()?)
             }
             CommandType::SetNewCam => {
-                let args = set_new_cam::Args::from(bytemuck::must_cast::<_, set_new_cam::ArgsRaw>(payload));
-                Ok(Command {
-                    port: From::from(args.connector_number),
-                    operation: CommandData::SetNewCam(args),
-                })
+                CommandData::SetNewCam(bytemuck::must_cast::<_, set_new_cam::ArgsRaw>(payload).into())
             }
             CommandType::GetErrorStatus => {
-                let connector_number = u8::from(bytemuck::must_cast::<_, get_error_status::ArgsRaw>(payload));
-                Ok(Command {
-                    port: From::from(connector_number),
-                    operation: CommandData::GetErrorStatus,
-                })
+                CommandData::GetErrorStatus(bytemuck::must_cast::<_, get_error_status::ArgsRaw>(payload).into())
             }
-            CommandType::SetCcom => {
-                let args = set_ccom::Args::from(bytemuck::must_cast::<_, set_ccom::ArgsRaw>(payload));
-                Ok(Command {
-                    port: From::from(args.connector_number),
-                    operation: CommandData::SetCcom(args),
-                })
-            }
-            CommandType::SetUor => {
-                let args = set_uor::Args::from(bytemuck::must_cast::<_, set_uor::ArgsRaw>(payload));
-                Ok(Command {
-                    port: From::from(args.connector_number),
-                    operation: CommandData::SetUor(args),
-                })
-            }
-            CommandType::SetPdr => {
-                let args = set_pdr::Args::from(bytemuck::must_cast::<_, set_pdr::ArgsRaw>(payload));
-                Ok(Command {
-                    port: From::from(args.connector_number),
-                    operation: CommandData::SetPdr(args),
-                })
-            }
-            CommandType::GetAlternateModes => {
-                let args = get_alternate_modes::Args::try_from(
-                    bytemuck::must_cast::<_, get_alternate_modes::ArgsRaw>(payload),
-                )?;
-                Ok(Command {
-                    port: From::from(args.connector_number),
-                    operation: CommandData::GetAlternateModes(args),
-                })
-            }
+            CommandType::SetCcom => CommandData::SetCcom(bytemuck::must_cast::<_, set_ccom::ArgsRaw>(payload).into()),
+            CommandType::SetUor => CommandData::SetUor(bytemuck::must_cast::<_, set_uor::ArgsRaw>(payload).into()),
+            CommandType::SetPdr => CommandData::SetPdr(bytemuck::must_cast::<_, set_pdr::ArgsRaw>(payload).into()),
+            CommandType::GetAlternateModes => CommandData::GetAlternateModes(
+                bytemuck::must_cast::<_, get_alternate_modes::ArgsRaw>(payload).try_into()?,
+            ),
             CommandType::GetCamSupported => {
-                let connector_number = u8::from(bytemuck::must_cast::<_, get_cam_supported::ArgsRaw>(payload));
-                Ok(Command {
-                    port: From::from(connector_number),
-                    operation: CommandData::GetCamSupported,
-                })
+                CommandData::GetCamSupported(bytemuck::must_cast::<_, get_cam_supported::ArgsRaw>(payload).into())
             }
             CommandType::GetCurrentCam => {
-                let connector_number = u8::from(bytemuck::must_cast::<_, get_current_cam::ArgsRaw>(payload));
-                Ok(Command {
-                    port: From::from(connector_number),
-                    operation: CommandData::GetCurrentCam,
-                })
+                CommandData::GetCurrentCam(bytemuck::must_cast::<_, get_current_cam::ArgsRaw>(payload).into())
             }
             CommandType::GetPdos => {
-                let args = get_pdos::Args::try_from(bytemuck::must_cast::<_, get_pdos::ArgsRaw>(payload))?;
-                Ok(Command {
-                    port: From::from(args.connector_number),
-                    operation: CommandData::GetPdos(args),
-                })
+                CommandData::GetPdos(bytemuck::must_cast::<_, get_pdos::ArgsRaw>(payload).try_into()?)
             }
             CommandType::GetCableProperty => {
-                let connector_number = u8::from(bytemuck::must_cast::<_, get_cable_property::ArgsRaw>(payload));
-                Ok(Command {
-                    port: From::from(connector_number),
-                    operation: CommandData::GetCableProperty,
-                })
+                CommandData::GetCableProperty(bytemuck::must_cast::<_, get_cable_property::ArgsRaw>(payload).into())
             }
             CommandType::GetPdMessage => {
-                let args = get_pd_message::Args::try_from(bytemuck::must_cast::<_, get_pd_message::ArgsRaw>(payload))?;
-                Ok(Command {
-                    port: From::from(args.connector_number),
-                    operation: CommandData::GetPdMessage(args),
-                })
+                CommandData::GetPdMessage(bytemuck::must_cast::<_, get_pd_message::ArgsRaw>(payload).try_into()?)
             }
-            _ => Err(InvalidCommand::InvalidCommandType(InvalidCommandType(
-                command_type as u8,
-            ))),
-        }
+            command_type => {
+                return Err(InvalidCommand::InvalidCommandType(InvalidCommandType(
+                    command_type as u8,
+                )))
+            }
+        };
+
+        Ok(Command::new(operation))
     }
 }
 
 pub type GlobalCommand = Command<GlobalPortId>;
 pub type LocalCommand = Command<LocalPortId>;
+
+/// Maximum length of any LPM response data
+pub const RESPONSE_DATA_MAX_LEN: usize = get_current_cam::ResponseDataRaw::LEN;
 
 /// LPM response data
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -401,9 +366,6 @@ pub enum ResponseData {
 }
 
 impl ResponseData {
-    /// Maximum length in bytes of any LPM response data
-    pub const MAX_LEN: usize = get_current_cam::ResponseDataRaw::LEN;
-
     /// Returns the command type that produces this response data
     pub const fn command_type(&self) -> CommandType {
         match self {
@@ -420,91 +382,105 @@ impl ResponseData {
         }
     }
 
-    /// Converts this response data into raw bytes
-    ///
-    /// Returns a [`Self::MAX_LEN`] sized buffer along with the number of valid
-    /// bytes at its start.
-    pub fn to_bytes(&self) -> ([u8; Self::MAX_LEN], usize) {
+    /// Number of valid bytes this response data occupies on the wire
+    pub fn data_len(&self) -> usize {
         match self {
             // No response data
-            ResponseData::ConnectorReset => ([0; Self::MAX_LEN], 0),
-            ResponseData::GetConnectorStatus(data) => (
-                resize(
-                    bytemuck::must_cast::<_, [u8; get_connector_status::ResponseDataRaw::LEN]>(
-                        get_connector_status::ResponseDataRaw::from(*data),
-                    ),
-                ),
-                get_connector_status::ResponseDataRaw::LEN,
-            ),
-            ResponseData::GetConnectorCapability(data) => (
-                resize(bytemuck::must_cast::<
-                    _,
-                    [u8; get_connector_capability::ResponseDataRaw::LEN],
-                >(get_connector_capability::ResponseDataRaw::from(
-                    *data,
-                ))),
-                get_connector_capability::ResponseDataRaw::LEN,
-            ),
-            ResponseData::GetErrorStatus(data) => (
-                resize(bytemuck::must_cast::<_, [u8; get_error_status::ResponseDataRaw::LEN]>(
-                    get_error_status::ResponseDataRaw::from(*data),
-                )),
-                get_error_status::ResponseDataRaw::LEN,
-            ),
-            ResponseData::GetAlternateModes(data) => (
-                resize(
-                    bytemuck::must_cast::<_, [u8; get_alternate_modes::ResponseDataRaw::LEN]>(
-                        get_alternate_modes::ResponseDataRaw::from(*data),
-                    ),
-                ),
-                get_alternate_modes::ResponseDataRaw::LEN,
-            ),
-            ResponseData::GetCamSupported(data) => (
-                resize(bytemuck::must_cast::<_, [u8; get_cam_supported::ResponseDataRaw::LEN]>(
-                    get_cam_supported::ResponseDataRaw::from(*data),
-                )),
-                get_cam_supported::ResponseDataRaw::LEN,
-            ),
-            ResponseData::GetCurrentCam(data) => (
-                resize(bytemuck::must_cast::<_, [u8; get_current_cam::ResponseDataRaw::LEN]>(
-                    get_current_cam::ResponseDataRaw::from(*data),
-                )),
-                get_current_cam::ResponseDataRaw::LEN,
-            ),
+            ResponseData::ConnectorReset => 0,
+            ResponseData::GetConnectorStatus(_) => get_connector_status::ResponseDataRaw::LEN,
+            ResponseData::GetConnectorCapability(_) => get_connector_capability::ResponseDataRaw::LEN,
+            ResponseData::GetErrorStatus(_) => get_error_status::ResponseDataRaw::LEN,
+            ResponseData::GetAlternateModes(_) => get_alternate_modes::ResponseDataRaw::LEN,
+            ResponseData::GetCamSupported(_) => get_cam_supported::ResponseDataRaw::LEN,
+            ResponseData::GetCurrentCam(_) => get_current_cam::ResponseDataRaw::LEN,
             // Only the valid PDOs are sent, the response is shorter than the raw type when fewer are present
-            ResponseData::GetPdos(data) => (
-                resize(bytemuck::must_cast::<_, [u8; get_pdos::ResponseDataRaw::LEN]>(
-                    get_pdos::ResponseDataRaw::from(*data),
-                )),
-                data.iter().len() * size_of::<u32>(),
-            ),
-            ResponseData::GetCableProperty(data) => (
-                resize(
-                    bytemuck::must_cast::<_, [u8; get_cable_property::ResponseDataRaw::LEN]>(
-                        get_cable_property::ResponseDataRaw::from(*data),
-                    ),
-                ),
-                get_cable_property::ResponseDataRaw::LEN,
-            ),
-            ResponseData::GetPdMessage(data) => (
-                resize(bytemuck::must_cast::<_, [u8; get_pd_message::ResponseDataRaw::LEN]>(
-                    get_pd_message::ResponseDataRaw::from(*data),
-                )),
-                get_pd_message::ResponseDataRaw::LEN,
-            ),
+            ResponseData::GetPdos(data) => data.iter().len() * size_of::<u32>(),
+            ResponseData::GetCableProperty(_) => get_cable_property::ResponseDataRaw::LEN,
+            ResponseData::GetPdMessage(_) => get_pd_message::ResponseDataRaw::LEN,
         }
     }
+}
+
+impl From<ResponseData> for super::ResponseDataRaw {
+    /// Converts response data into a [`ResponseDataRaw::MAX_LEN`] sized buffer
+    ///
+    /// Only the first [`ResponseData::data_len`] bytes are valid.
+    fn from(data: ResponseData) -> Self {
+        match data {
+            // No response data
+            ResponseData::ConnectorReset => super::ResponseDataRaw {
+                payload: [0; super::ResponseDataRaw::MAX_LEN],
+            },
+            ResponseData::GetConnectorStatus(data) => super::ResponseDataRaw {
+                payload: resize(
+                    bytemuck::must_cast::<_, [u8; get_connector_status::ResponseDataRaw::LEN]>(
+                        get_connector_status::ResponseDataRaw::from(data),
+                    ),
+                ),
+            },
+            ResponseData::GetConnectorCapability(data) => super::ResponseDataRaw {
+                payload: resize(bytemuck::must_cast::<
+                    _,
+                    [u8; get_connector_capability::ResponseDataRaw::LEN],
+                >(get_connector_capability::ResponseDataRaw::from(data))),
+            },
+            ResponseData::GetErrorStatus(data) => super::ResponseDataRaw {
+                payload: resize(bytemuck::must_cast::<_, [u8; get_error_status::ResponseDataRaw::LEN]>(
+                    get_error_status::ResponseDataRaw::from(data),
+                )),
+            },
+            ResponseData::GetAlternateModes(data) => super::ResponseDataRaw {
+                payload: resize(
+                    bytemuck::must_cast::<_, [u8; get_alternate_modes::ResponseDataRaw::LEN]>(
+                        get_alternate_modes::ResponseDataRaw::from(data),
+                    ),
+                ),
+            },
+            ResponseData::GetCamSupported(data) => super::ResponseDataRaw {
+                payload: resize(bytemuck::must_cast::<_, [u8; get_cam_supported::ResponseDataRaw::LEN]>(
+                    get_cam_supported::ResponseDataRaw::from(data),
+                )),
+            },
+            ResponseData::GetCurrentCam(data) => super::ResponseDataRaw {
+                payload: resize(bytemuck::must_cast::<_, [u8; get_current_cam::ResponseDataRaw::LEN]>(
+                    get_current_cam::ResponseDataRaw::from(data),
+                )),
+            },
+            ResponseData::GetPdos(data) => super::ResponseDataRaw {
+                payload: resize(bytemuck::must_cast::<_, [u8; get_pdos::ResponseDataRaw::LEN]>(
+                    get_pdos::ResponseDataRaw::from(data),
+                )),
+            },
+            ResponseData::GetCableProperty(data) => super::ResponseDataRaw {
+                payload: resize(
+                    bytemuck::must_cast::<_, [u8; get_cable_property::ResponseDataRaw::LEN]>(
+                        get_cable_property::ResponseDataRaw::from(data),
+                    ),
+                ),
+            },
+            ResponseData::GetPdMessage(data) => super::ResponseDataRaw {
+                payload: resize(bytemuck::must_cast::<_, [u8; get_pd_message::ResponseDataRaw::LEN]>(
+                    get_pd_message::ResponseDataRaw::from(data),
+                )),
+            },
+        }
+    }
+}
+
+impl TryFrom<(CommandType, super::ResponseDataRaw)> for ResponseData {
+    type Error = InvalidResponseData;
 
     /// Reconstructs response data from its command type and raw bytes
     ///
     /// Returns an error if `command_type` is not an LPM command or if the bytes
     /// do not contain valid response data.
-    pub fn from_bytes(command_type: CommandType, bytes: [u8; Self::MAX_LEN]) -> Result<Self, InvalidResponseData> {
+    fn try_from((command_type, raw): (CommandType, super::ResponseDataRaw)) -> Result<Self, Self::Error> {
+        let bytes = raw.payload;
         match command_type {
             CommandType::ConnectorReset => Ok(ResponseData::ConnectorReset),
             CommandType::GetConnectorStatus => {
                 let raw = bytemuck::must_cast::<_, get_connector_status::ResponseDataRaw>(resize::<
-                    { Self::MAX_LEN },
+                    { RESPONSE_DATA_MAX_LEN },
                     { get_connector_status::ResponseDataRaw::LEN },
                 >(bytes));
                 Ok(ResponseData::GetConnectorStatus(
@@ -513,56 +489,56 @@ impl ResponseData {
             }
             CommandType::GetConnectorCapability => Ok(ResponseData::GetConnectorCapability(
                 bytemuck::must_cast::<_, get_connector_capability::ResponseDataRaw>(resize::<
-                    { Self::MAX_LEN },
+                    { RESPONSE_DATA_MAX_LEN },
                     { get_connector_capability::ResponseDataRaw::LEN },
                 >(bytes))
                 .into(),
             )),
             CommandType::GetErrorStatus => Ok(ResponseData::GetErrorStatus(
                 bytemuck::must_cast::<_, get_error_status::ResponseDataRaw>(resize::<
-                    { Self::MAX_LEN },
+                    { RESPONSE_DATA_MAX_LEN },
                     { get_error_status::ResponseDataRaw::LEN },
                 >(bytes))
                 .into(),
             )),
             CommandType::GetAlternateModes => Ok(ResponseData::GetAlternateModes(
                 bytemuck::must_cast::<_, get_alternate_modes::ResponseDataRaw>(resize::<
-                    { Self::MAX_LEN },
+                    { RESPONSE_DATA_MAX_LEN },
                     { get_alternate_modes::ResponseDataRaw::LEN },
                 >(bytes))
                 .into(),
             )),
             CommandType::GetCamSupported => Ok(ResponseData::GetCamSupported(
                 bytemuck::must_cast::<_, get_cam_supported::ResponseDataRaw>(resize::<
-                    { Self::MAX_LEN },
+                    { RESPONSE_DATA_MAX_LEN },
                     { get_cam_supported::ResponseDataRaw::LEN },
                 >(bytes))
                 .into(),
             )),
             CommandType::GetCurrentCam => Ok(ResponseData::GetCurrentCam(
                 bytemuck::must_cast::<_, get_current_cam::ResponseDataRaw>(resize::<
-                    { Self::MAX_LEN },
+                    { RESPONSE_DATA_MAX_LEN },
                     { get_current_cam::ResponseDataRaw::LEN },
                 >(bytes))
                 .into(),
             )),
             CommandType::GetPdos => Ok(ResponseData::GetPdos(
                 bytemuck::must_cast::<_, get_pdos::ResponseDataRaw>(resize::<
-                    { Self::MAX_LEN },
+                    { RESPONSE_DATA_MAX_LEN },
                     { get_pdos::ResponseDataRaw::LEN },
                 >(bytes))
                 .into(),
             )),
             CommandType::GetCableProperty => Ok(ResponseData::GetCableProperty(
                 bytemuck::must_cast::<_, get_cable_property::ResponseDataRaw>(resize::<
-                    { Self::MAX_LEN },
+                    { RESPONSE_DATA_MAX_LEN },
                     { get_cable_property::ResponseDataRaw::LEN },
                 >(bytes))
                 .into(),
             )),
             CommandType::GetPdMessage => Ok(ResponseData::GetPdMessage(
                 bytemuck::must_cast::<_, get_pd_message::ResponseDataRaw>(resize::<
-                    { Self::MAX_LEN },
+                    { RESPONSE_DATA_MAX_LEN },
                     { get_pd_message::ResponseDataRaw::LEN },
                 >(bytes))
                 .into(),
@@ -648,13 +624,9 @@ mod tests {
     use super::*;
     use crate::PowerRole;
 
-    /// Decodes a command from a full command buffer, splitting off the header
+    /// Decodes a command from a full command buffer
     fn decode(bytes: [u8; COMMAND_LEN]) -> Result<GlobalCommand, InvalidCommand> {
-        let header = CommandHeaderRaw(u16::from_le_bytes([bytes[0], bytes[1]]));
-        let command_type = CommandType::try_from(header.command()).unwrap();
-        let mut payload = [0u8; GlobalCommand::PAYLOAD_LEN];
-        payload.copy_from_slice(&bytes[size_of::<CommandHeaderRaw>()..]);
-        GlobalCommand::from_payload(command_type, payload)
+        GlobalCommand::try_from(bytemuck::must_cast::<_, CommandRaw>(bytes))
     }
 
     #[test]
@@ -665,13 +637,10 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(1),
-                operation: CommandData::ConnectorReset(connector_reset::Args {
-                    connector_number: 1,
-                    hard_reset: true,
-                }),
-            }
+            GlobalCommand::new(CommandData::ConnectorReset(connector_reset::Args {
+                connector_number: GlobalPortId(1),
+                hard_reset: true,
+            }))
         );
     }
 
@@ -683,10 +652,9 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(1),
-                operation: CommandData::GetConnectorStatus,
-            }
+            GlobalCommand::new(CommandData::GetConnectorStatus(get_connector_status::Args {
+                connector_number: GlobalPortId(1)
+            }))
         );
     }
 
@@ -698,10 +666,9 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(1),
-                operation: CommandData::GetConnectorCapability,
-            }
+            GlobalCommand::new(CommandData::GetConnectorCapability(get_connector_capability::Args {
+                connector_number: GlobalPortId(1)
+            }))
         );
     }
 
@@ -713,14 +680,11 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(1),
-                operation: CommandData::SetPowerLevel(set_power_level::Args {
-                    connector_number: 1,
-                    power_role: PowerRole::Source,
-                    ..Default::default()
-                })
-            }
+            GlobalCommand::new(CommandData::SetPowerLevel(set_power_level::Args {
+                connector_number: GlobalPortId(1),
+                power_role: PowerRole::Source,
+                ..Default::default()
+            }))
         )
     }
 
@@ -746,13 +710,10 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(0),
-                operation: CommandData::GetAlternateModes(get_alternate_modes::Args {
-                    recipient: Recipient::Sop,
-                    ..Default::default()
-                }),
-            }
+            GlobalCommand::new(CommandData::GetAlternateModes(get_alternate_modes::Args {
+                recipient: Recipient::Sop,
+                ..Default::default()
+            }))
         );
     }
 
@@ -776,14 +737,11 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(1),
-                operation: CommandData::SetCcom(set_ccom::Args {
-                    connector_number: 1,
-                    rp: true,
-                    ..Default::default()
-                }),
-            }
+            GlobalCommand::new(CommandData::SetCcom(set_ccom::Args {
+                connector_number: GlobalPortId(1),
+                rp: true,
+                ..Default::default()
+            }))
         );
     }
 
@@ -795,15 +753,12 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(1),
-                operation: CommandData::SetNewCam(set_new_cam::Args {
-                    connector_number: 1,
-                    enter: false,
-                    am_offset: 0,
-                    am_specific: 0,
-                }),
-            }
+            GlobalCommand::new(CommandData::SetNewCam(set_new_cam::Args {
+                connector_number: GlobalPortId(1),
+                enter: false,
+                am_offset: 0,
+                am_specific: 0,
+            }))
         );
     }
 
@@ -815,14 +770,11 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(1),
-                operation: CommandData::SetUor(set_uor::Args {
-                    connector_number: 1,
-                    dfp: true,
-                    ..Default::default()
-                }),
-            }
+            GlobalCommand::new(CommandData::SetUor(set_uor::Args {
+                connector_number: GlobalPortId(1),
+                dfp: true,
+                ..Default::default()
+            }))
         );
     }
 
@@ -834,10 +786,9 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(1),
-                operation: CommandData::GetErrorStatus,
-            }
+            GlobalCommand::new(CommandData::GetErrorStatus(get_error_status::Args {
+                connector_number: GlobalPortId(1)
+            }))
         );
     }
 
@@ -849,14 +800,11 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(1),
-                operation: CommandData::SetPdr(set_pdr::Args {
-                    connector_number: 1,
-                    swap_source: true,
-                    ..Default::default()
-                }),
-            }
+            GlobalCommand::new(CommandData::SetPdr(set_pdr::Args {
+                connector_number: GlobalPortId(1),
+                swap_source: true,
+                ..Default::default()
+            }))
         );
     }
 
@@ -868,10 +816,9 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(1),
-                operation: CommandData::GetCamSupported,
-            }
+            GlobalCommand::new(CommandData::GetCamSupported(get_cam_supported::Args {
+                connector_number: GlobalPortId(1)
+            }))
         );
     }
 
@@ -883,10 +830,9 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(1),
-                operation: CommandData::GetCurrentCam,
-            }
+            GlobalCommand::new(CommandData::GetCurrentCam(get_current_cam::Args {
+                connector_number: GlobalPortId(1)
+            }))
         );
     }
 
@@ -898,14 +844,11 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(1),
-                operation: CommandData::GetPdos(get_pdos::Args {
-                    connector_number: 1,
-                    partner: true,
-                    ..Default::default()
-                }),
-            }
+            GlobalCommand::new(CommandData::GetPdos(get_pdos::Args {
+                connector_number: GlobalPortId(1),
+                partner: true,
+                ..Default::default()
+            }))
         );
     }
 
@@ -926,16 +869,13 @@ mod tests {
 
     #[test]
     fn test_encode_get_pdos_invalid_num_pdos() {
-        let command = GlobalCommand {
-            port: GlobalPortId(1),
-            operation: CommandData::GetPdos(get_pdos::Args {
-                num_pdos: 0,
-                ..Default::default()
-            }),
-        };
+        let command = GlobalCommand::new(CommandData::GetPdos(get_pdos::Args {
+            num_pdos: 0,
+            ..Default::default()
+        }));
 
         assert_eq!(
-            command.to_payload(),
+            CommandRaw::try_from(command),
             Err(InvalidCommand::InvalidNumPdos(get_pdos::InvalidNumPdos(0)))
         );
     }
@@ -946,9 +886,11 @@ mod tests {
             pdos: [0x11223344, 0x55667788, 0, 0],
         });
 
-        let (bytes, len) = response.to_bytes();
+        let len = response.data_len();
+        let raw: crate::ucsi::v1_2::ResponseDataRaw = response.into();
+
         assert_eq!(len, 2 * size_of::<u32>());
-        assert_eq!(bytes[..len], [0x44, 0x33, 0x22, 0x11, 0x88, 0x77, 0x66, 0x55]);
+        assert_eq!(raw.payload[..len], [0x44, 0x33, 0x22, 0x11, 0x88, 0x77, 0x66, 0x55]);
     }
 
     #[test]
@@ -959,10 +901,9 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(1),
-                operation: CommandData::GetCableProperty,
-            }
+            GlobalCommand::new(CommandData::GetCableProperty(get_cable_property::Args {
+                connector_number: GlobalPortId(1)
+            }))
         );
     }
 
@@ -977,16 +918,13 @@ mod tests {
 
         assert_eq!(
             decode(bytes).unwrap(),
-            GlobalCommand {
-                port: GlobalPortId(3),
-                operation: CommandData::GetPdMessage(get_pd_message::Args {
-                    connector_number: 3,
-                    recipient: Recipient::Sop,
-                    message_offset: 2,
-                    num_bytes: 1,
-                    message_type: get_pd_message::MessageType::BatteryCap,
-                }),
-            }
+            GlobalCommand::new(CommandData::GetPdMessage(get_pd_message::Args {
+                connector_number: GlobalPortId(3),
+                recipient: Recipient::Sop,
+                message_offset: 2,
+                num_bytes: 1,
+                message_type: get_pd_message::MessageType::BatteryCap,
+            }))
         );
     }
 
@@ -1022,5 +960,41 @@ mod tests {
                 get_pd_message::InvalidArgs::InvalidMessageType(get_pd_message::InvalidMessageType(0x0f))
             ))
         );
+    }
+    /// Every LPM command carries a connector, so it must survive a set/get round trip
+    #[test]
+    fn test_set_connector_all_commands() {
+        let commands = [
+            CommandData::ConnectorReset(Default::default()),
+            CommandData::GetConnectorStatus(Default::default()),
+            CommandData::GetConnectorCapability(Default::default()),
+            CommandData::SetPowerLevel(Default::default()),
+            CommandData::SetNewCam(Default::default()),
+            CommandData::GetErrorStatus(Default::default()),
+            CommandData::SetCcom(Default::default()),
+            CommandData::SetUor(Default::default()),
+            CommandData::SetPdr(Default::default()),
+            CommandData::GetAlternateModes(Default::default()),
+            CommandData::GetCamSupported(Default::default()),
+            CommandData::GetCurrentCam(Default::default()),
+            CommandData::GetPdos(Default::default()),
+            CommandData::GetCableProperty(Default::default()),
+            CommandData::GetPdMessage(Default::default()),
+        ];
+
+        for operation in commands {
+            let mut command = GlobalCommand::new(operation);
+            assert_eq!(command.connector_number(), GlobalPortId(0));
+
+            command.set_connector_number(GlobalPortId(3));
+            assert_eq!(command.connector_number(), GlobalPortId(3));
+            // The connector must also reach the wire format
+            assert_eq!(
+                GlobalCommand::try_from(CommandRaw::try_from(command).unwrap())
+                    .unwrap()
+                    .connector_number(),
+                GlobalPortId(3)
+            );
+        }
     }
 }

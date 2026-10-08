@@ -240,10 +240,9 @@ mod test {
 
         // Invalid LPM command
         sm.state = State::Idle(false);
-        let cmd = Command::LpmCommand(ucsi::lpm::Command::new(
-            GlobalPortId(0),
-            lpm::CommandData::GetPdos(lpm::get_pdos::Args::default()),
-        ));
+        let cmd = Command::LpmCommand(ucsi::lpm::Command::new(lpm::CommandData::GetPdos(
+            lpm::get_pdos::Args::default(),
+        )));
         let res = sm.consume(Input::Command(&cmd));
         assert_eq!(
             res,
@@ -262,10 +261,9 @@ mod test {
         sm.state = State::ProcessingCommand;
 
         // State machine is already in processing command state, should fail
-        let cmd = Command::LpmCommand(lpm::Command::new(
-            GlobalPortId(0),
-            lpm::CommandData::GetPdos(lpm::get_pdos::Args::default()),
-        ));
+        let cmd = Command::LpmCommand(lpm::Command::new(lpm::CommandData::GetPdos(
+            lpm::get_pdos::Args::default(),
+        )));
         let res = sm.consume(Input::Command(&cmd));
         assert_eq!(
             res,
@@ -288,10 +286,9 @@ mod test {
         sm.state = State::Idle(true);
 
         // Test simple command execution
-        let cmd = Command::LpmCommand(lpm::Command::new(
-            GlobalPortId(0),
-            lpm::CommandData::GetPdos(lpm::get_pdos::Args::default()),
-        ));
+        let cmd = Command::LpmCommand(lpm::Command::new(lpm::CommandData::GetPdos(
+            lpm::get_pdos::Args::default(),
+        )));
         let res = sm.consume(Input::Command(&cmd));
         assert_eq!(res, Ok(Some(Output::ExecuteCommand(&cmd))));
         assert_eq!(sm.state(), State::ProcessingCommand);
@@ -363,10 +360,9 @@ mod test {
 
         // All other commands should fail as well
         sm.state = State::WaitForCommandCompleteAck;
-        let cmd = Command::LpmCommand(lpm::Command::new(
-            GlobalPortId(0),
-            lpm::CommandData::GetPdos(lpm::get_pdos::Args::default()),
-        ));
+        let cmd = Command::LpmCommand(lpm::Command::new(lpm::CommandData::GetPdos(
+            lpm::get_pdos::Args::default(),
+        )));
         let res = sm.consume(Input::Command(&cmd));
         assert_eq!(
             res,

@@ -5,6 +5,7 @@ use bytemuck::{Pod, Zeroable};
 use pack1::U16LE;
 
 use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
+use crate::PortId;
 
 /// Command padding
 pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() - size_of::<ArgBitsRaw>();
@@ -44,11 +45,11 @@ impl defmt::Format for ArgBitsRaw {
 }
 
 /// Command arguments
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Args {
+pub struct Args<T: PortId> {
     /// Connector number
-    pub connector_number: u8,
+    pub connector_number: T,
     /// Rp
     pub rp: bool,
     /// Rd
@@ -59,10 +60,22 @@ pub struct Args {
     pub disabled: bool,
 }
 
-impl From<ArgBitsRaw> for Args {
+impl<T: PortId> Default for Args<T> {
+    fn default() -> Self {
+        Self {
+            connector_number: T::from(0),
+            rp: false,
+            rd: false,
+            drp: false,
+            disabled: false,
+        }
+    }
+}
+
+impl<T: PortId> From<ArgBitsRaw> for Args<T> {
     fn from(raw: ArgBitsRaw) -> Self {
         Self {
-            connector_number: raw.connector_number(),
+            connector_number: raw.connector_number().into(),
             rp: raw.rp(),
             rd: raw.rd(),
             drp: raw.drp(),
@@ -71,10 +84,10 @@ impl From<ArgBitsRaw> for Args {
     }
 }
 
-impl From<Args> for ArgBitsRaw {
-    fn from(args: Args) -> Self {
+impl<T: PortId> From<Args<T>> for ArgBitsRaw {
+    fn from(args: Args<T>) -> Self {
         let mut raw = ArgBitsRaw(0);
-        raw.set_connector_number(args.connector_number);
+        raw.set_connector_number(args.connector_number.into());
         raw.set_rp(args.rp);
         raw.set_rd(args.rd);
         raw.set_drp(args.drp);
@@ -83,14 +96,14 @@ impl From<Args> for ArgBitsRaw {
     }
 }
 
-impl From<u16> for Args {
+impl<T: PortId> From<u16> for Args<T> {
     fn from(value: u16) -> Self {
         ArgBitsRaw(value).into()
     }
 }
 
-impl From<Args> for u16 {
-    fn from(args: Args) -> Self {
+impl<T: PortId> From<Args<T>> for u16 {
+    fn from(args: Args<T>) -> Self {
         ArgBitsRaw::from(args).0
     }
 }
@@ -117,8 +130,8 @@ impl defmt::Format for ArgsRaw {
     }
 }
 
-impl From<Args> for ArgsRaw {
-    fn from(args: Args) -> Self {
+impl<T: PortId> From<Args<T>> for ArgsRaw {
+    fn from(args: Args<T>) -> Self {
         Self {
             bits: U16LE::new(args.into()),
             ..Default::default()
@@ -126,7 +139,7 @@ impl From<Args> for ArgsRaw {
     }
 }
 
-impl From<ArgsRaw> for Args {
+impl<T: PortId> From<ArgsRaw> for Args<T> {
     fn from(raw: ArgsRaw) -> Self {
         raw.bits.get().into()
     }
@@ -135,6 +148,7 @@ impl From<ArgsRaw> for Args {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::GlobalPortId;
 
     /// Mask of all bits defined by [`ArgBitsRaw`]
     const DEFINED_BITS: u16 = 0x07FF;
@@ -149,7 +163,7 @@ mod test {
         for bit in 0..u16::BITS {
             let raw = 1u16 << bit;
             // Undefined bits are dropped by the roundtrip
-            assert_eq!(u16::from(Args::from(raw)), raw & DEFINED_BITS);
+            assert_eq!(u16::from(Args::<GlobalPortId>::from(raw)), raw & DEFINED_BITS);
         }
     }
 
@@ -157,8 +171,8 @@ mod test {
     fn test_args_raw_roundtrip() {
         // Rp/DRP on connector 3, the Rp bit shares a byte with the connector number
         let encoded: [u8; ArgsRaw::LEN] = [0x83, 0x02, 0x00, 0x00, 0x00, 0x00];
-        let expected = Args {
-            connector_number: 3,
+        let expected: Args<GlobalPortId> = Args {
+            connector_number: GlobalPortId(3),
             rp: true,
             drp: true,
             ..Default::default()
@@ -172,8 +186,8 @@ mod test {
     #[test]
     fn test_args_raw_ignores_reserved() {
         let encoded: [u8; ArgsRaw::LEN] = [0x01, 0xF8, 0xFF, 0xFF, 0xFF, 0xFF];
-        let expected = Args {
-            connector_number: 1,
+        let expected: Args<GlobalPortId> = Args {
+            connector_number: GlobalPortId(1),
             ..Default::default()
         };
         assert_eq!(Args::from(bytemuck::must_cast::<_, ArgsRaw>(encoded)), expected);
