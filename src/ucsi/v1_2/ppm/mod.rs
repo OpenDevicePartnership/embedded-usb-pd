@@ -5,6 +5,7 @@ use crate::{GlobalPortId, LocalPortId, PortId};
 pub mod ack_cc_ci;
 pub mod cancel;
 pub mod get_capability;
+pub mod get_error_status;
 pub mod ppm_reset;
 pub mod set_notification_enable;
 pub mod state_machine;
@@ -20,6 +21,7 @@ pub enum Command {
     AckCcCi(ack_cc_ci::Args),
     SetNotificationEnable(set_notification_enable::Args),
     GetCapability,
+    GetErrorStatus,
 }
 
 impl Command {
@@ -34,6 +36,7 @@ impl Command {
             Command::AckCcCi(_) => CommandType::AckCcCi,
             Command::SetNotificationEnable(_) => CommandType::SetNotificationEnable,
             Command::GetCapability => CommandType::GetCapability,
+            Command::GetErrorStatus => CommandType::GetErrorStatus,
         }
     }
 }
@@ -46,6 +49,7 @@ impl From<Command> for CommandRaw {
             Command::AckCcCi(args) => bytemuck::must_cast(ack_cc_ci::ArgsRaw::from(args)),
             Command::SetNotificationEnable(args) => bytemuck::must_cast(set_notification_enable::ArgsRaw::from(args)),
             Command::GetCapability => bytemuck::must_cast(get_capability::ArgsRaw::from(get_capability::Args)),
+            Command::GetErrorStatus => bytemuck::must_cast(get_error_status::ArgsRaw::from(get_error_status::Args)),
         };
 
         CommandRaw {
@@ -74,6 +78,7 @@ impl TryFrom<CommandRaw> for Command {
                 bytemuck::must_cast::<_, set_notification_enable::ArgsRaw>(raw.payload).into(),
             )),
             CommandType::GetCapability => Ok(Command::GetCapability),
+            CommandType::GetErrorStatus => Ok(Command::GetErrorStatus),
             command_type => Err(InvalidCommandType(command_type as u8)),
         }
     }
@@ -84,6 +89,7 @@ impl TryFrom<CommandRaw> for Command {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ResponseData {
     GetCapability(get_capability::ResponseData),
+    GetErrorStatus(get_error_status::ResponseData),
 }
 
 impl ResponseData {
@@ -91,6 +97,7 @@ impl ResponseData {
     pub const fn command_type(&self) -> CommandType {
         match self {
             ResponseData::GetCapability(_) => CommandType::GetCapability,
+            ResponseData::GetErrorStatus(_) => CommandType::GetErrorStatus,
         }
     }
 
@@ -98,6 +105,7 @@ impl ResponseData {
     pub const fn data_len(&self) -> usize {
         match self {
             ResponseData::GetCapability(_) => get_capability::ResponseDataRaw::LEN,
+            ResponseData::GetErrorStatus(_) => get_error_status::ResponseDataRaw::LEN,
         }
     }
 }
@@ -110,6 +118,9 @@ impl From<ResponseData> for super::ResponseDataRaw {
         match data {
             ResponseData::GetCapability(data) => {
                 bytemuck::must_cast::<_, super::ResponseDataRaw>(get_capability::ResponseDataRaw::from(data))
+            }
+            ResponseData::GetErrorStatus(data) => {
+                bytemuck::must_cast::<_, super::ResponseDataRaw>(get_error_status::ResponseDataRaw::from(data))
             }
         }
     }
@@ -126,6 +137,12 @@ impl TryFrom<(CommandType, super::ResponseDataRaw)> for ResponseData {
         match command_type {
             CommandType::GetCapability => Ok(ResponseData::GetCapability(
                 bytemuck::must_cast::<_, get_capability::ResponseDataRaw>(super::ResponseDataRaw {
+                    payload: raw.payload,
+                })
+                .into(),
+            )),
+            CommandType::GetErrorStatus => Ok(ResponseData::GetErrorStatus(
+                bytemuck::must_cast::<_, get_error_status::ResponseDataRaw>(super::ResponseDataRaw {
                     payload: raw.payload,
                 })
                 .into(),
@@ -165,6 +182,7 @@ impl<T: PortId, Out: PortId> MapPort<T, Out> for Response<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ucsi::v1_2::ppm::get_error_status::Information;
     use crate::ucsi::v1_2::ResponseDataRaw;
 
     /// Builds the raw wire format of a PPM command from its type and payload
@@ -192,6 +210,11 @@ mod tests {
     #[test]
     fn test_cancel_payload() {
         assert_payload_roundtrip(Command::Cancel, [0u8; Command::PAYLOAD_LEN]);
+    }
+
+    #[test]
+    fn test_get_error_status_payload() {
+        assert_payload_roundtrip(Command::GetErrorStatus, [0u8; Command::PAYLOAD_LEN]);
     }
 
     #[test]
@@ -239,7 +262,7 @@ mod tests {
     }
 
     #[test]
-    fn test_response_data_bytes() {
+    fn test_response_get_capability_data_bytes() {
         let data = get_capability::ResponseData {
             num_connectors: 1,
             ..Default::default()
@@ -251,6 +274,27 @@ mod tests {
         assert_eq!(expected.data_len(), get_capability::ResponseDataRaw::LEN);
         assert_eq!(
             ResponseData::try_from((CommandType::GetCapability, bytes)),
+            Ok(expected)
+        );
+    }
+
+    #[test]
+    fn test_response_get_error_status_data_bytes() {
+        let data = get_error_status::ResponseData {
+            information: Information {
+                unrecognized_command: true,
+                swap_rejected: true,
+                ..Default::default()
+            },
+            vendor: Default::default(),
+        };
+        let expected = ResponseData::GetErrorStatus(data);
+
+        let bytes: ResponseDataRaw = expected.into();
+
+        assert_eq!(expected.data_len(), get_error_status::ResponseDataRaw::LEN);
+        assert_eq!(
+            ResponseData::try_from((CommandType::GetErrorStatus, bytes)),
             Ok(expected)
         );
     }

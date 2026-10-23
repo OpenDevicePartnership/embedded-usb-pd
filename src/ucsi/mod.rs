@@ -26,11 +26,11 @@ pub trait MapPort<T: PortId, Out: PortId>: Sized {
     }
 }
 
-/// Commands that may target a connector
+/// Commands that target a connector
 pub trait ConnectorNumber<T: PortId> {
-    /// Returns the connector this command targets, `None` if the command is not connector specific
-    fn connector_number(&self) -> Option<T>;
+    /// Returns the connector this command targets
+    fn connector_number(&self) -> T;
 
-    /// Sets the connector this command targets, does nothing if the command is not connector specific
+    /// Sets the connector this command targets
     fn set_connector_number(&mut self, connector: T) -> &mut Self;
 }

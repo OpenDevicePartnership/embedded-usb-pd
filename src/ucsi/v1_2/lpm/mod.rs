@@ -11,7 +11,6 @@ pub mod get_cam_supported;
 pub mod get_connector_capability;
 pub mod get_connector_status;
 pub mod get_current_cam;
-pub mod get_error_status;
 pub mod get_pd_message;
 pub mod get_pdos;
 pub mod set_ccom;
@@ -132,7 +131,6 @@ pub enum CommandData<T: PortId> {
     GetConnectorCapability(get_connector_capability::Args<T>),
     SetPowerLevel(set_power_level::Args<T>),
     SetNewCam(set_new_cam::Args<T>),
-    GetErrorStatus(get_error_status::Args),
     SetCcom(set_ccom::Args<T>),
     SetUor(set_uor::Args<T>),
     SetPdr(set_pdr::Args<T>),
@@ -153,7 +151,6 @@ impl<T: PortId> CommandData<T> {
             CommandData::GetConnectorCapability(_) => CommandType::GetConnectorCapability,
             CommandData::SetPowerLevel(_) => CommandType::SetPowerLevel,
             CommandData::SetNewCam(_) => CommandType::SetNewCam,
-            CommandData::GetErrorStatus(_) => CommandType::GetErrorStatus,
             CommandData::SetCcom(_) => CommandType::SetCcom,
             CommandData::SetUor(_) => CommandType::SetUor,
             CommandData::SetPdr(_) => CommandType::SetPdr,
@@ -168,23 +165,22 @@ impl<T: PortId> CommandData<T> {
 }
 
 impl<T: PortId> ConnectorNumber<T> for CommandData<T> {
-    fn connector_number(&self) -> Option<T> {
+    fn connector_number(&self) -> T {
         match self {
-            CommandData::ConnectorReset(args) => Some(args.connector_number),
-            CommandData::GetConnectorStatus(args) => Some(args.connector_number),
-            CommandData::GetConnectorCapability(args) => Some(args.connector_number),
-            CommandData::SetPowerLevel(args) => Some(args.connector_number),
-            CommandData::SetNewCam(args) => Some(args.connector_number),
-            CommandData::GetErrorStatus(_args) => None,
-            CommandData::SetCcom(args) => Some(args.connector_number),
-            CommandData::SetUor(args) => Some(args.connector_number),
-            CommandData::SetPdr(args) => Some(args.connector_number),
-            CommandData::GetAlternateModes(args) => Some(args.connector_number),
-            CommandData::GetCamSupported(args) => Some(args.connector_number),
-            CommandData::GetCurrentCam(args) => Some(args.connector_number),
-            CommandData::GetPdos(args) => Some(args.connector_number),
-            CommandData::GetCableProperty(args) => Some(args.connector_number),
-            CommandData::GetPdMessage(args) => Some(args.connector_number),
+            CommandData::ConnectorReset(args) => args.connector_number,
+            CommandData::GetConnectorStatus(args) => args.connector_number,
+            CommandData::GetConnectorCapability(args) => args.connector_number,
+            CommandData::SetPowerLevel(args) => args.connector_number,
+            CommandData::SetNewCam(args) => args.connector_number,
+            CommandData::SetCcom(args) => args.connector_number,
+            CommandData::SetUor(args) => args.connector_number,
+            CommandData::SetPdr(args) => args.connector_number,
+            CommandData::GetAlternateModes(args) => args.connector_number,
+            CommandData::GetCamSupported(args) => args.connector_number,
+            CommandData::GetCurrentCam(args) => args.connector_number,
+            CommandData::GetPdos(args) => args.connector_number,
+            CommandData::GetCableProperty(args) => args.connector_number,
+            CommandData::GetPdMessage(args) => args.connector_number,
         }
     }
 
@@ -195,7 +191,6 @@ impl<T: PortId> ConnectorNumber<T> for CommandData<T> {
             CommandData::GetConnectorCapability(args) => args.connector_number = connector,
             CommandData::SetPowerLevel(args) => args.connector_number = connector,
             CommandData::SetNewCam(args) => args.connector_number = connector,
-            CommandData::GetErrorStatus(_) => {}
             CommandData::SetCcom(args) => args.connector_number = connector,
             CommandData::SetUor(args) => args.connector_number = connector,
             CommandData::SetPdr(args) => args.connector_number = connector,
@@ -224,7 +219,6 @@ impl<T: PortId, Out: PortId> crate::ucsi::MapPort<T, Out> for CommandData<T> {
             CommandData::GetConnectorCapability(args) => CommandData::GetConnectorCapability(args.map_port(&f)),
             CommandData::SetPowerLevel(args) => CommandData::SetPowerLevel(args.map_port(&f)),
             CommandData::SetNewCam(args) => CommandData::SetNewCam(args.map_port(&f)),
-            CommandData::GetErrorStatus(args) => CommandData::GetErrorStatus(args),
             CommandData::SetCcom(args) => CommandData::SetCcom(args.map_port(&f)),
             CommandData::SetUor(args) => CommandData::SetUor(args.map_port(&f)),
             CommandData::SetPdr(args) => CommandData::SetPdr(args.map_port(&f)),
@@ -261,7 +255,7 @@ impl<T: PortId> Command<T> {
 }
 
 impl<T: PortId> ConnectorNumber<T> for Command<T> {
-    fn connector_number(&self) -> Option<T> {
+    fn connector_number(&self) -> T {
         self.operation.connector_number()
     }
 
@@ -309,7 +303,6 @@ impl<T: PortId> TryFrom<Command<T>> for CommandRaw {
             }
             CommandData::SetPowerLevel(args) => bytemuck::must_cast(set_power_level::ArgsRaw::try_from(args)?),
             CommandData::SetNewCam(args) => bytemuck::must_cast(set_new_cam::ArgsRaw::from(args)),
-            CommandData::GetErrorStatus(args) => bytemuck::must_cast(get_error_status::ArgsRaw::from(args)),
             CommandData::SetCcom(args) => {
                 bytemuck::must_cast(set_ccom::ArgsRaw::try_from(args).map_err(InvalidCommand::InvalidCcomFlags)?)
             }
@@ -360,9 +353,6 @@ impl<T: PortId> TryFrom<CommandRaw> for Command<T> {
             }
             CommandType::SetNewCam => {
                 CommandData::SetNewCam(bytemuck::must_cast::<_, set_new_cam::ArgsRaw>(payload).into())
-            }
-            CommandType::GetErrorStatus => {
-                CommandData::GetErrorStatus(bytemuck::must_cast::<_, get_error_status::ArgsRaw>(payload).into())
             }
             CommandType::SetCcom => CommandData::SetCcom(
                 bytemuck::must_cast::<_, set_ccom::ArgsRaw>(payload)
@@ -421,7 +411,6 @@ pub enum ResponseData {
     ConnectorReset,
     GetConnectorStatus(get_connector_status::ResponseData),
     GetConnectorCapability(get_connector_capability::ResponseData),
-    GetErrorStatus(get_error_status::ResponseData),
     GetAlternateModes(get_alternate_modes::ResponseData),
     GetCamSupported(get_cam_supported::ResponseData),
     GetCurrentCam(get_current_cam::ResponseData),
@@ -437,7 +426,6 @@ impl ResponseData {
             ResponseData::ConnectorReset => CommandType::ConnectorReset,
             ResponseData::GetConnectorStatus(_) => CommandType::GetConnectorStatus,
             ResponseData::GetConnectorCapability(_) => CommandType::GetConnectorCapability,
-            ResponseData::GetErrorStatus(_) => CommandType::GetErrorStatus,
             ResponseData::GetAlternateModes(_) => CommandType::GetAlternateModes,
             ResponseData::GetCamSupported(_) => CommandType::GetCamSupported,
             ResponseData::GetCurrentCam(_) => CommandType::GetCurrentCam,
@@ -454,7 +442,6 @@ impl ResponseData {
             ResponseData::ConnectorReset => 0,
             ResponseData::GetConnectorStatus(_) => get_connector_status::ResponseDataRaw::LEN,
             ResponseData::GetConnectorCapability(_) => get_connector_capability::ResponseDataRaw::LEN,
-            ResponseData::GetErrorStatus(_) => get_error_status::ResponseDataRaw::LEN,
             ResponseData::GetAlternateModes(_) => get_alternate_modes::ResponseDataRaw::LEN,
             ResponseData::GetCamSupported(_) => get_cam_supported::ResponseDataRaw::LEN,
             ResponseData::GetCurrentCam(_) => get_current_cam::ResponseDataRaw::LEN,
@@ -488,11 +475,6 @@ impl From<ResponseData> for super::ResponseDataRaw {
                     _,
                     [u8; get_connector_capability::ResponseDataRaw::LEN],
                 >(get_connector_capability::ResponseDataRaw::from(data))),
-            },
-            ResponseData::GetErrorStatus(data) => super::ResponseDataRaw {
-                payload: resize(bytemuck::must_cast::<_, [u8; get_error_status::ResponseDataRaw::LEN]>(
-                    get_error_status::ResponseDataRaw::from(data),
-                )),
             },
             ResponseData::GetAlternateModes(data) => super::ResponseDataRaw {
                 payload: resize(
@@ -556,13 +538,6 @@ impl TryFrom<(CommandType, super::ResponseDataRaw)> for ResponseData {
                 bytemuck::must_cast::<_, get_connector_capability::ResponseDataRaw>(resize::<
                     { RESPONSE_DATA_MAX_LEN },
                     { get_connector_capability::ResponseDataRaw::LEN },
-                >(bytes))
-                .into(),
-            )),
-            CommandType::GetErrorStatus => Ok(ResponseData::GetErrorStatus(
-                bytemuck::must_cast::<_, get_error_status::ResponseDataRaw>(resize::<
-                    { RESPONSE_DATA_MAX_LEN },
-                    { get_error_status::ResponseDataRaw::LEN },
                 >(bytes))
                 .into(),
             )),
@@ -857,17 +832,6 @@ mod tests {
     }
 
     #[test]
-    fn test_decode_get_error_status() {
-        let mut bytes = [0u8; COMMAND_LEN];
-        bytes[0] = CommandType::GetErrorStatus as u8;
-
-        assert_eq!(
-            decode(bytes).unwrap(),
-            GlobalCommand::new(CommandData::GetErrorStatus(get_error_status::Args))
-        );
-    }
-
-    #[test]
     fn test_decode_set_pdr() {
         let mut bytes = [0u8; COMMAND_LEN];
         bytes[0] = CommandType::SetPdr as u8;
@@ -1040,66 +1004,49 @@ mod tests {
     #[test]
     fn test_set_connector_all_commands() {
         let commands = [
-            (true, CommandData::ConnectorReset(Default::default())),
-            (true, CommandData::GetConnectorStatus(Default::default())),
-            (true, CommandData::GetConnectorCapability(Default::default())),
-            (true, CommandData::SetPowerLevel(Default::default())),
-            (true, CommandData::SetNewCam(Default::default())),
-            (false, CommandData::GetErrorStatus(Default::default())),
-            (
-                true,
-                CommandData::SetCcom(set_ccom::Args {
-                    connector_number: GlobalPortId(0),
-                    rp: true,
-                    rd: false,
-                    drp: false,
-                }),
-            ),
-            (
-                true,
-                CommandData::SetUor(set_uor::Args {
-                    connector_number: GlobalPortId(0),
-                    dfp: true,
-                    ufp: false,
-                    accept_swap: false,
-                }),
-            ),
-            (
-                true,
-                CommandData::SetPdr(set_pdr::Args {
-                    connector_number: GlobalPortId(0),
-                    swap_source: true,
-                    swap_sink: false,
-                    accept_swap: false,
-                }),
-            ),
-            (true, CommandData::GetAlternateModes(Default::default())),
-            (true, CommandData::GetCamSupported(Default::default())),
-            (true, CommandData::GetCurrentCam(Default::default())),
-            (true, CommandData::GetPdos(Default::default())),
-            (true, CommandData::GetCableProperty(Default::default())),
-            (true, CommandData::GetPdMessage(Default::default())),
+            CommandData::ConnectorReset(Default::default()),
+            CommandData::GetConnectorStatus(Default::default()),
+            CommandData::GetConnectorCapability(Default::default()),
+            CommandData::SetPowerLevel(Default::default()),
+            CommandData::SetNewCam(Default::default()),
+            CommandData::SetCcom(set_ccom::Args {
+                connector_number: GlobalPortId(0),
+                rp: true,
+                rd: false,
+                drp: false,
+            }),
+            CommandData::SetUor(set_uor::Args {
+                connector_number: GlobalPortId(0),
+                dfp: true,
+                ufp: false,
+                accept_swap: false,
+            }),
+            CommandData::SetPdr(set_pdr::Args {
+                connector_number: GlobalPortId(0),
+                swap_source: true,
+                swap_sink: false,
+                accept_swap: false,
+            }),
+            CommandData::GetAlternateModes(Default::default()),
+            CommandData::GetCamSupported(Default::default()),
+            CommandData::GetCurrentCam(Default::default()),
+            CommandData::GetPdos(Default::default()),
+            CommandData::GetCableProperty(Default::default()),
+            CommandData::GetPdMessage(Default::default()),
         ];
 
-        for (has_connector_number, operation) in commands {
+        for operation in commands {
             let mut command = GlobalCommand::new(operation);
-            if has_connector_number {
-                assert_eq!(command.connector_number(), Some(GlobalPortId(0)));
-                command.set_connector_number(GlobalPortId(3));
-                assert_eq!(command.connector_number(), Some(GlobalPortId(3)));
-                // The connector must also reach the wire format
-                assert_eq!(
-                    GlobalCommand::try_from(CommandRaw::try_from(command).unwrap())
-                        .unwrap()
-                        .connector_number(),
-                    Some(GlobalPortId(3))
-                );
-            } else {
-                assert_eq!(command.connector_number(), None);
-                command.set_connector_number(GlobalPortId(3));
-                // Don't have a connector number for this command, should be a no-op
-                assert_eq!(command.connector_number(), None);
-            }
+            assert_eq!(command.connector_number(), GlobalPortId(0));
+            command.set_connector_number(GlobalPortId(3));
+            assert_eq!(command.connector_number(), GlobalPortId(3));
+            // The connector must also reach the wire format
+            assert_eq!(
+                GlobalCommand::try_from(CommandRaw::try_from(command).unwrap())
+                    .unwrap()
+                    .connector_number(),
+                GlobalPortId(3)
+            );
         }
     }
 }
