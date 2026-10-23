@@ -114,6 +114,8 @@ impl<T: PortId> StateMachine<T> {
             (Busy(notification_enabled), BusyChanged) => (Idle(notification_enabled), None),
             (Busy(false), CommandComplete) => (Busy(false), None),
             (Busy(true), CommandComplete) => (Busy(true), Some(OpmNotifyBusy)),
+            (Busy(true), Command(_cmd)) => (Busy(true), Some(OpmNotifyBusy)),
+            (Busy(false), Command(_cmd)) => (Busy(false), None),
 
             // Idle(true) successful transitions
             (Idle(true), BusyChanged) => (Busy(true), None),
@@ -372,5 +374,27 @@ mod test {
             })
         );
         assert_eq!(sm.state(), State::WaitForCommandCompleteAck);
+    }
+
+    /// Test response when attempting to execute a command when busy, with notifications enabled
+    #[test]
+    fn test_busy_notify() {
+        let mut sm = GlobalStateMachine::new();
+        sm.state = State::Busy(true);
+
+        let result = sm.consume(Input::Command(&Command::PpmCommand(ppm::Command::GetCapability)));
+        assert_eq!(result, Ok(Some(Output::OpmNotifyBusy)));
+        assert_eq!(sm.state(), State::Busy(true));
+    }
+
+    /// Test response when attempting to execute a command when busy, with notifications disabled
+    #[test]
+    fn test_busy_no_notify() {
+        let mut sm = GlobalStateMachine::new();
+        sm.state = State::Busy(false);
+
+        let result = sm.consume(Input::Command(&Command::PpmCommand(ppm::Command::GetCapability)));
+        assert_eq!(result, Ok(None));
+        assert_eq!(sm.state(), State::Busy(false));
     }
 }
