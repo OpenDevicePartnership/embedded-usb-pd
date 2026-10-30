@@ -53,6 +53,8 @@ pub enum InvalidCommand {
     InvalidCcomFlags(set_ccom::InvalidCcomFlags),
     /// Invalid SET_PDR flags
     InvalidPdrFlags(set_pdr::InvalidPdrFlags),
+    /// Invalid GET_ALTERNATE_MODES num modes value
+    InvalidNumModes(get_alternate_modes::InvalidNumModes),
 }
 
 impl From<InvalidCommandType> for InvalidCommand {
@@ -94,6 +96,21 @@ impl From<InvalidRecipient> for InvalidCommand {
 impl From<get_pd_message::InvalidArgs> for InvalidCommand {
     fn from(value: get_pd_message::InvalidArgs) -> Self {
         InvalidCommand::InvalidPdMessageArgs(value)
+    }
+}
+
+impl From<get_alternate_modes::InvalidNumModes> for InvalidCommand {
+    fn from(value: get_alternate_modes::InvalidNumModes) -> Self {
+        InvalidCommand::InvalidNumModes(value)
+    }
+}
+
+impl From<get_alternate_modes::Error> for InvalidCommand {
+    fn from(value: get_alternate_modes::Error) -> Self {
+        match value {
+            get_alternate_modes::Error::InvalidNumModes(value) => InvalidCommand::InvalidNumModes(value),
+            get_alternate_modes::Error::InvalidRecipient(value) => InvalidCommand::InvalidRecipient(value),
+        }
     }
 }
 
@@ -312,7 +329,7 @@ impl<T: PortId> TryFrom<Command<T>> for CommandRaw {
             CommandData::SetPdr(args) => {
                 bytemuck::must_cast(set_pdr::ArgsRaw::try_from(args).map_err(InvalidCommand::InvalidPdrFlags)?)
             }
-            CommandData::GetAlternateModes(args) => bytemuck::must_cast(get_alternate_modes::ArgsRaw::from(args)),
+            CommandData::GetAlternateModes(args) => bytemuck::must_cast(get_alternate_modes::ArgsRaw::try_from(args)?),
             CommandData::GetCamSupported(args) => bytemuck::must_cast(get_cam_supported::ArgsRaw::from(args)),
             CommandData::GetCurrentCam(args) => bytemuck::must_cast(get_current_cam::ArgsRaw::from(args)),
             CommandData::GetPdos(args) => bytemuck::must_cast(get_pdos::ArgsRaw::try_from(args)?),
@@ -765,6 +782,7 @@ mod tests {
             decode(bytes).unwrap(),
             GlobalCommand::new(CommandData::GetAlternateModes(get_alternate_modes::Args {
                 recipient: Recipient::Sop,
+                num_modes: 1,
                 ..Default::default()
             }))
         );
@@ -1027,7 +1045,10 @@ mod tests {
                 swap_sink: false,
                 accept_swap: false,
             }),
-            CommandData::GetAlternateModes(Default::default()),
+            CommandData::GetAlternateModes(get_alternate_modes::Args {
+                num_modes: 1,
+                ..Default::default()
+            }),
             CommandData::GetCamSupported(Default::default()),
             CommandData::GetCurrentCam(Default::default()),
             CommandData::GetPdos(Default::default()),
