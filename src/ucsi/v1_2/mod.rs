@@ -1018,7 +1018,7 @@ mod tests {
         // GET_ALTERNATE_MODES: arbitrary SVID/MID pairs, all little-endian:
         // (0x1234, 0x12345678) and (0x3412, 0x78563412).
         let data = lpm::get_alternate_modes::ResponseData {
-            alt_modes: [
+            alt_modes: heapless::Vec::from_slice(&[
                 lpm::get_alternate_modes::AltMode {
                     svid: crate::vdm::structured::Svid(0x1234),
                     mid: crate::vdm::AltModeId(0x12345678),
@@ -1027,13 +1027,35 @@ mod tests {
                     svid: crate::vdm::structured::Svid(0x3412),
                     mid: crate::vdm::AltModeId(0x78563412),
                 },
-            ],
+            ])
+            .unwrap(),
         };
         assert_response_encoding(
             CommandType::GetAlternateModes,
             Some(ResponseData::Lpm(lpm::ResponseData::GetAlternateModes(data))),
             &[0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x12, 0x34, 0x12, 0x34, 0x56, 0x78],
         );
+    }
+
+    /// Verify that the data len is correctly propagated into the raw CCI
+    #[test]
+    fn test_data_len_get_alternate_modes() {
+        let response_data = Response::<GlobalPortId> {
+            cci: cci::Cci::new_cmd_complete().into(),
+            data: Some(ResponseData::Lpm(lpm::ResponseData::GetAlternateModes(
+                lpm::get_alternate_modes::ResponseData {
+                    alt_modes: heapless::Vec::from_slice(&[lpm::get_alternate_modes::AltMode {
+                        svid: crate::vdm::structured::Svid(0x1234),
+                        mid: crate::vdm::AltModeId(0x12345678),
+                    }])
+                    .unwrap(),
+                },
+            ))),
+        };
+
+        let raw = ResponseRaw::try_from(response_data).unwrap();
+        let cci = cci::Cci::<GlobalPortId>::try_from(raw.cci.get()).unwrap();
+        assert_eq!(cci.data_len, 6);
     }
 
     #[test]
@@ -1258,17 +1280,17 @@ mod tests {
 
     /// Verify that the data len is correctly propagated into the raw CCI
     #[test]
-    fn test_data_len() {
+    fn test_data_len_get_pdos() {
         let response_data = Response::<GlobalPortId> {
             cci: cci::Cci::new_cmd_complete().into(),
             data: Some(ResponseData::Lpm(lpm::ResponseData::GetPdos(get_pdos::ResponseData {
-                pdos: heapless::Vec::from_slice(&[0x12, 0x34, 0x56, 0x78]).unwrap(),
+                pdos: heapless::Vec::from_slice(&[0x12, 0x34, 0x56]).unwrap(),
             }))),
         };
 
         let raw = ResponseRaw::try_from(response_data).unwrap();
         let cci = cci::Cci::<GlobalPortId>::try_from(raw.cci.get()).unwrap();
-        assert_eq!(cci.data_len, 16);
+        assert_eq!(cci.data_len, 12);
     }
 
     /// Test PPM response encoding with an invalid CCI

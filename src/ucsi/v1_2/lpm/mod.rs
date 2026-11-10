@@ -459,7 +459,9 @@ impl ResponseData {
             ResponseData::ConnectorReset => 0,
             ResponseData::GetConnectorStatus(_) => get_connector_status::ResponseDataRaw::LEN,
             ResponseData::GetConnectorCapability(_) => get_connector_capability::ResponseDataRaw::LEN,
-            ResponseData::GetAlternateModes(_) => get_alternate_modes::ResponseDataRaw::LEN,
+            ResponseData::GetAlternateModes(data) => {
+                data.alt_modes.len() * size_of::<get_alternate_modes::AltModeRaw>()
+            }
             ResponseData::GetCamSupported(_) => get_cam_supported::ResponseDataRaw::LEN,
             ResponseData::GetCurrentCam(_) => get_current_cam::ResponseDataRaw::LEN,
             // Only the valid PDOs are sent, the response is shorter than the raw type when fewer are present
