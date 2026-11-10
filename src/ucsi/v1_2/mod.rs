@@ -299,7 +299,7 @@ impl From<InvalidResponseData> for PdError {
 }
 
 /// UCSI command response data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ResponseData {
     Ppm(ppm::ResponseData),
@@ -408,7 +408,7 @@ impl defmt::Format for ResponseRaw {
 }
 
 /// UCSI command response
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Response<T: PortId> {
     /// CCI is produced by every command
@@ -425,7 +425,7 @@ impl<T: PortId> Response<T> {
     ///
     /// Covers the CCI plus however much response data the command produced.
     pub fn valid_len(&self) -> usize {
-        size_of::<U32LE>() + self.data.map_or(0, |data| data.data_len())
+        size_of::<U32LE>() + self.data.clone().map_or(0, |data| data.data_len())
     }
 }
 
@@ -449,7 +449,7 @@ impl<T: PortId> TryFrom<Response<T>> for ResponseRaw {
     ///
     /// Only the first [`Response::valid_len`] bytes are valid.
     fn try_from(response: Response<T>) -> Result<Self, Self::Error> {
-        let data_len = response.data.map_or(0, |data| data.data_len());
+        let data_len = response.data.clone().map_or(0, |data| data.data_len());
         Ok(ResponseRaw {
             cci: U32LE::new(
                 response
@@ -458,7 +458,7 @@ impl<T: PortId> TryFrom<Response<T>> for ResponseRaw {
                     .try_into()
                     .map_err(InvalidResponseData::Cci)?,
             ),
-            data: response.data.map_or(
+            data: response.data.clone().map_or(
                 ResponseDataRaw {
                     payload: [0u8; ResponseDataRaw::MAX_LEN],
                 },
@@ -930,7 +930,7 @@ mod tests {
     fn assert_response_encoding(command_type: CommandType, data: Option<ResponseData>, bytes: &[u8]) {
         let expected = GlobalResponse {
             cci: cci::Cci::new_cmd_complete().into(),
-            data,
+            data: data.clone(),
         };
         let mut payload = [0u8; ResponseDataRaw::MAX_LEN];
         payload.get_mut(..bytes.len()).unwrap().copy_from_slice(bytes);
@@ -941,13 +941,13 @@ mod tests {
         };
 
         assert_eq!(expected.valid_len(), size_of::<U32LE>() + bytes.len());
-        assert_eq!(ResponseRaw::try_from(expected), Ok(raw));
+        assert_eq!(ResponseRaw::try_from(expected.clone()), Ok(raw));
         assert_eq!(Response::try_from((command_type, raw)), Ok(expected));
-        if let Some(data) = data {
+        if let Some(data) = data.clone() {
             assert_eq!(data.command_type(), command_type);
             assert_eq!(data.data_len(), bytes.len());
-            assert_eq!(ResponseDataRaw::from(data), raw.data);
-            assert_eq!(ResponseData::try_from((command_type, raw.data)), Ok(data));
+            assert_eq!(ResponseDataRaw::from(data.clone()), raw.data);
+            assert_eq!(ResponseData::try_from((command_type, raw.data.clone())), Ok(data));
         }
     }
 
@@ -1018,7 +1018,7 @@ mod tests {
         // GET_ALTERNATE_MODES: arbitrary SVID/MID pairs, all little-endian:
         // (0x1234, 0x12345678) and (0x3412, 0x78563412).
         let data = lpm::get_alternate_modes::ResponseData {
-            alt_modes: [
+            alt_modes: heapless::Vec::from_slice(&[
                 lpm::get_alternate_modes::AltMode {
                     svid: crate::vdm::structured::Svid(0x1234),
                     mid: crate::vdm::AltModeId(0x12345678),
@@ -1027,7 +1027,8 @@ mod tests {
                     svid: crate::vdm::structured::Svid(0x3412),
                     mid: crate::vdm::AltModeId(0x78563412),
                 },
-            ],
+            ])
+            .unwrap(),
         };
         assert_response_encoding(
             CommandType::GetAlternateModes,
@@ -1036,16 +1037,38 @@ mod tests {
         );
     }
 
+    /// Verify that the data len is correctly propagated into the raw CCI
+    #[test]
+    fn test_data_len_get_alternate_modes() {
+        let response_data = Response::<GlobalPortId> {
+            cci: cci::Cci::new_cmd_complete().into(),
+            data: Some(ResponseData::Lpm(lpm::ResponseData::GetAlternateModes(
+                lpm::get_alternate_modes::ResponseData {
+                    alt_modes: heapless::Vec::from_slice(&[lpm::get_alternate_modes::AltMode {
+                        svid: crate::vdm::structured::Svid(0x1234),
+                        mid: crate::vdm::AltModeId(0x12345678),
+                    }])
+                    .unwrap(),
+                },
+            ))),
+        };
+
+        let raw = ResponseRaw::try_from(response_data).unwrap();
+        let cci = cci::Cci::<GlobalPortId>::try_from(raw.cci.get()).unwrap();
+        assert_eq!(cci.data_len, 6);
+    }
+
     #[test]
     fn test_get_cam_supported_response_roundtrip() {
-        // GET_CAM_SUPPORTED: alternate modes at indices 1 and 4 supported (0x12).
-        let data = lpm::get_cam_supported::ResponseData {
-            alt_modes: [false, true, false, false, true, false, false, false],
-        };
+        // GET_CAM_SUPPORTED: set first and last byte to test the range
+        let mut bytes = [0u8; lpm::get_cam_supported::ResponseDataRaw::LEN];
+        bytes[0] = 0x01;
+        bytes[bytes.len() - 1] = 0x80;
+        let data = lpm::get_cam_supported::ResponseData { alt_modes_raw: bytes };
         assert_response_encoding(
             CommandType::GetCamSupported,
             Some(ResponseData::Lpm(lpm::ResponseData::GetCamSupported(data))),
-            &[0x12],
+            &bytes,
         );
     }
 
@@ -1070,7 +1093,7 @@ mod tests {
         assert_response_encoding(
             CommandType::GetPdos,
             Some(ResponseData::Lpm(lpm::ResponseData::GetPdos(get_pdos::ResponseData {
-                pdos: [0x12, 0x34, 0x56, 0x78],
+                pdos: heapless::Vec::from_slice(&[0x12, 0x34, 0x56, 0x78]).unwrap(),
             }))),
             &[0x12, 0, 0, 0, 0x34, 0, 0, 0, 0x56, 0, 0, 0, 0x78, 0, 0, 0],
         );
@@ -1083,7 +1106,7 @@ mod tests {
         assert_response_encoding(
             CommandType::GetPdos,
             Some(ResponseData::Lpm(lpm::ResponseData::GetPdos(get_pdos::ResponseData {
-                pdos: [0x11223344, 0x55667788, 0, 0],
+                pdos: heapless::Vec::from_slice(&[0x11223344, 0x55667788]).unwrap(),
             }))),
             &[0x44, 0x33, 0x22, 0x11, 0x88, 0x77, 0x66, 0x55],
         );
@@ -1257,17 +1280,17 @@ mod tests {
 
     /// Verify that the data len is correctly propagated into the raw CCI
     #[test]
-    fn test_data_len() {
+    fn test_data_len_get_pdos() {
         let response_data = Response::<GlobalPortId> {
             cci: cci::Cci::new_cmd_complete().into(),
             data: Some(ResponseData::Lpm(lpm::ResponseData::GetPdos(get_pdos::ResponseData {
-                pdos: [0x12, 0x34, 0x56, 0x78],
+                pdos: heapless::Vec::from_slice(&[0x12, 0x34, 0x56]).unwrap(),
             }))),
         };
 
         let raw = ResponseRaw::try_from(response_data).unwrap();
         let cci = cci::Cci::<GlobalPortId>::try_from(raw.cci.get()).unwrap();
-        assert_eq!(cci.data_len, 16);
+        assert_eq!(cci.data_len, 12);
     }
 
     /// Test PPM response encoding with an invalid CCI
