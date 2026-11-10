@@ -242,13 +242,23 @@ impl From<AltModeRaw> for AltMode {
 }
 
 /// Length of the alternate modes array
-pub const ALT_MODES_LEN: usize = 2;
+pub const MAX_ALT_MODES: usize = 2;
 
 /// GET_ALTERNATE_MODES response data
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ResponseData {
-    pub alt_modes: [AltMode; ALT_MODES_LEN],
+    pub alt_modes: heapless::Vec<AltMode, MAX_ALT_MODES>,
+}
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for ResponseData {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(fmt, "ResponseData {{ ");
+        for (i, alt_mode) in self.alt_modes.iter().enumerate() {
+            defmt::write!(fmt, "alt_mode[{}]: {} ", i, alt_mode);
+        }
+        defmt::write!(fmt, "}}");
+    }
 }
 
 /// Raw wire format of [`ResponseData`]
@@ -256,7 +266,7 @@ pub struct ResponseData {
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Zeroable, Pod)]
 pub struct ResponseDataRaw {
     /// Alternate modes
-    pub alt_modes: [AltModeRaw; ALT_MODES_LEN],
+    pub alt_modes: [AltModeRaw; MAX_ALT_MODES],
 }
 
 impl ResponseDataRaw {
@@ -273,16 +283,31 @@ impl defmt::Format for ResponseDataRaw {
 
 impl From<ResponseData> for ResponseDataRaw {
     fn from(data: ResponseData) -> Self {
-        Self {
-            alt_modes: data.alt_modes.map(AltModeRaw::from),
+        let mut raw = [AltModeRaw::default(); MAX_ALT_MODES];
+        for (raw, &alt_mode) in raw.iter_mut().zip(&data.alt_modes) {
+            *raw = AltModeRaw::from(alt_mode);
         }
+        Self { alt_modes: raw }
     }
 }
 
 impl From<ResponseDataRaw> for ResponseData {
     fn from(raw: ResponseDataRaw) -> Self {
         Self {
-            alt_modes: raw.alt_modes.map(AltMode::from),
+            alt_modes: {
+                let mut alt_modes = heapless::Vec::new();
+                for &alt_mode in &raw.alt_modes {
+                    if alt_modes.len() == MAX_ALT_MODES || alt_mode.svid == 0.into() {
+                        break;
+                    }
+
+                    // Panic safety: Length of both arrays should be the same at compile time,
+                    // and we break the loop if we exceed MAX_ALT_MODES, so unwrap is safe.
+                    #[allow(clippy::unwrap_used)]
+                    alt_modes.push(AltMode::from(alt_mode)).unwrap();
+                }
+                alt_modes
+            },
         }
     }
 }
@@ -355,11 +380,19 @@ mod test {
         // No particular meaning to these values
         let encoded: [u8; ResponseDataRaw::LEN] =
             [0x34, 0x12, 0x78, 0x56, 0x34, 0x12, 0x12, 0x34, 0x12, 0x34, 0x56, 0x78];
-        let mut expected = ResponseData::default();
-        expected.alt_modes[0].svid = Svid(0x1234);
-        expected.alt_modes[0].mid = AltModeId(0x12345678);
-        expected.alt_modes[1].svid = Svid(0x3412);
-        expected.alt_modes[1].mid = AltModeId(0x78563412);
+        let expected = ResponseData {
+            alt_modes: heapless::Vec::from_slice(&[
+                AltMode {
+                    svid: Svid(0x1234),
+                    mid: AltModeId(0x12345678),
+                },
+                AltMode {
+                    svid: Svid(0x3412),
+                    mid: AltModeId(0x78563412),
+                },
+            ])
+            .unwrap(),
+        };
 
         assert_eq!(
             ResponseData::from(bytemuck::must_cast::<_, ResponseDataRaw>(encoded)),
