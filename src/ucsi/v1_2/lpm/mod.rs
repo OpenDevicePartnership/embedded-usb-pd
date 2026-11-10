@@ -422,7 +422,7 @@ pub type LocalCommand = Command<LocalPortId>;
 pub const RESPONSE_DATA_MAX_LEN: usize = get_current_cam::ResponseDataRaw::LEN;
 
 /// LPM response data
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ResponseData {
     ConnectorReset,
@@ -463,7 +463,7 @@ impl ResponseData {
             ResponseData::GetCamSupported(_) => get_cam_supported::ResponseDataRaw::LEN,
             ResponseData::GetCurrentCam(_) => get_current_cam::ResponseDataRaw::LEN,
             // Only the valid PDOs are sent, the response is shorter than the raw type when fewer are present
-            ResponseData::GetPdos(data) => data.iter().len() * size_of::<u32>(),
+            ResponseData::GetPdos(data) => data.pdos.len() * size_of::<u32>(),
             ResponseData::GetCableProperty(_) => get_cable_property::ResponseDataRaw::LEN,
             ResponseData::GetPdMessage(_) => get_pd_message::ResponseDataRaw::LEN,
         }
@@ -608,7 +608,7 @@ impl TryFrom<(CommandType, super::ResponseDataRaw)> for ResponseData {
 }
 
 /// LPM command response
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Response<T: PortId> {
     /// CCI is produced by every command
@@ -940,7 +940,7 @@ mod tests {
     #[test]
     fn test_encode_get_pdos_response_variable_length() {
         let response = ResponseData::GetPdos(get_pdos::ResponseData {
-            pdos: [0x11223344, 0x55667788, 0, 0],
+            pdos: heapless::Vec::from_slice(&[0x11223344, 0x55667788]).unwrap(),
         });
 
         let len = response.data_len();
