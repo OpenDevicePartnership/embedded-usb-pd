@@ -6,11 +6,11 @@ use crate::ucsi::v1_2::{CommandHeaderRaw, COMMAND_LEN};
 use crate::PortId;
 
 /// Data length for the GET_CAM_SUPPORTED command response
-pub const RESPONSE_DATA_LEN: usize = 1;
+pub const RESPONSE_DATA_LEN: usize = 16;
 /// Command padding
 pub const COMMAND_PADDING: usize = COMMAND_LEN - size_of::<CommandHeaderRaw>() - size_of::<ConnectorNumberRaw>();
 /// Maximum number of alternate modes supported
-pub const MAX_ALT_MODES: usize = 8;
+pub const MAX_ALT_MODES: usize = 128;
 
 /// Command arguments
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,11 +79,66 @@ impl<T: PortId> From<ArgsRaw> for Args<T> {
 }
 
 /// GET_CAM_SUPPORTED response data, supports up to [`MAX_ALT_MODES`] alternate modes
+///
+/// This is one of the few UCSI types that implements setters/getters instead of pure public fields.
+/// A `[bool; 128]` is 128-bytes, nothing crazy. But UCSI v3.0 supports up to 2040 alternate modes.
+/// 2KB for a struct is excessive, particularly when it's highly unlikely that a connector would support
+/// more than a handful of alternate modes. Setters and getters allow for forward compatibility with a
+/// future UCSI v3.0 implementation.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ResponseData {
-    /// Support flag for each alternate mode
-    pub alt_modes: [bool; MAX_ALT_MODES],
+    /// Bitmap of supported alternate modes
+    pub alt_modes_raw: [u8; RESPONSE_DATA_LEN],
+}
+
+impl ResponseData {
+    /// Tries to get whether the alternate mode at the given index is supported
+    ///
+    /// Returns `None` if the index is out of bounds, otherwise returns `Some(true)` if supported or `Some(false)` if not supported.
+    pub fn try_get_supported(&self, index: usize) -> Option<bool> {
+        if index >= MAX_ALT_MODES {
+            return None;
+        }
+        let byte_index = index / 8;
+        let bit_index = index % 8;
+        Some((self.alt_modes_raw.get(byte_index).copied().unwrap_or(0) & (1 << bit_index)) != 0)
+    }
+
+    /// Tries to set whether the alternate mode at the given index is supported
+    ///
+    /// Returns `None` if the index is out of bounds, otherwise returns `Some(())`.
+    pub fn try_set_supported(&mut self, index: usize, supported: bool) -> Option<()> {
+        if index >= MAX_ALT_MODES {
+            return None;
+        }
+        let byte_index = index / 8;
+        let bit_index = index % 8;
+        if supported {
+            if let Some(byte) = self.alt_modes_raw.get_mut(byte_index) {
+                *byte |= 1 << bit_index;
+            }
+        } else {
+            if let Some(byte) = self.alt_modes_raw.get_mut(byte_index) {
+                *byte &= !(1 << bit_index);
+            }
+        }
+        Some(())
+    }
+
+    /// Gets whether the alternate mode at the given index is supported
+    ///
+    /// Returns `false` if the index is out of bounds.
+    pub fn get_supported(&self, index: usize) -> bool {
+        self.try_get_supported(index).unwrap_or(false)
+    }
+
+    /// Sets whether the alternate mode at the given index is supported
+    ///
+    /// Does nothing if the index is out of bounds.
+    pub fn set_supported(&mut self, index: usize, supported: bool) {
+        let _ = self.try_set_supported(index, supported);
+    }
 }
 
 /// Raw wire format of [`ResponseData`]
@@ -92,7 +147,7 @@ pub struct ResponseData {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ResponseDataRaw {
     /// Bitmap of supported alternate modes
-    pub alt_modes: u8,
+    pub alt_modes: [u8; RESPONSE_DATA_LEN],
 }
 
 impl ResponseDataRaw {
@@ -103,22 +158,16 @@ impl ResponseDataRaw {
 impl From<ResponseDataRaw> for ResponseData {
     fn from(raw: ResponseDataRaw) -> Self {
         let mut data = ResponseData::default();
-        for (index, alt_mode) in data.alt_modes.iter_mut().enumerate() {
-            *alt_mode = (raw.alt_modes & (1 << index)) != 0;
-        }
+        data.alt_modes_raw.copy_from_slice(&raw.alt_modes);
         data
     }
 }
 
 impl From<ResponseData> for ResponseDataRaw {
     fn from(data: ResponseData) -> Self {
-        let mut alt_modes = 0u8;
-        for (index, supported) in data.alt_modes.iter().enumerate() {
-            if *supported {
-                alt_modes |= 1 << index;
-            }
+        Self {
+            alt_modes: data.alt_modes_raw,
         }
-        Self { alt_modes }
     }
 }
 
@@ -149,15 +198,41 @@ mod test {
 
     #[test]
     fn test_response_data_roundtrip() {
-        let bytes = [0x12u8; RESPONSE_DATA_LEN];
-        let expected = ResponseData {
-            alt_modes: [false, true, false, false, true, false, false, false],
-        };
+        let mut bytes = [0u8; RESPONSE_DATA_LEN];
+        bytes[0] = 0x42;
+        bytes[1] = 0x85;
+        let raw = ResponseDataRaw { alt_modes: bytes };
 
-        let data = ResponseData::from(bytemuck::must_cast::<_, ResponseDataRaw>(bytes));
-        assert_eq!(data, expected);
+        let data = ResponseData::from(raw);
+        assert_eq!(data.alt_modes_raw, bytes);
 
-        let encoded: [u8; RESPONSE_DATA_LEN] = bytemuck::must_cast(ResponseDataRaw::from(expected));
+        // Test accessors
+        assert!(!data.get_supported(0));
+        assert!(data.get_supported(1));
+        assert!(!data.get_supported(2));
+        assert!(!data.get_supported(3));
+        assert!(!data.get_supported(4));
+        assert!(!data.get_supported(5));
+        assert!(data.get_supported(6));
+        assert!(!data.get_supported(7));
+
+        assert!(data.get_supported(8));
+        assert!(!data.get_supported(9));
+        assert!(data.get_supported(10));
+        assert!(!data.get_supported(11));
+        assert!(!data.get_supported(12));
+        assert!(!data.get_supported(13));
+        assert!(!data.get_supported(14));
+        assert!(data.get_supported(15));
+
+        for i in 16..128 {
+            assert!(!data.get_supported(i));
+        }
+
+        // Check past end
+        assert!(data.try_get_supported(128).is_none());
+
+        let encoded: [u8; RESPONSE_DATA_LEN] = bytemuck::must_cast(ResponseDataRaw::from(data));
         assert_eq!(encoded, bytes);
     }
 }

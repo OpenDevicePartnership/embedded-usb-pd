@@ -1038,14 +1038,15 @@ mod tests {
 
     #[test]
     fn test_get_cam_supported_response_roundtrip() {
-        // GET_CAM_SUPPORTED: alternate modes at indices 1 and 4 supported (0x12).
-        let data = lpm::get_cam_supported::ResponseData {
-            alt_modes: [false, true, false, false, true, false, false, false],
-        };
+        // GET_CAM_SUPPORTED: set first and last byte to test the range
+        let mut bytes = [0u8; lpm::get_cam_supported::ResponseDataRaw::LEN];
+        bytes[0] = 0x01;
+        bytes[bytes.len() - 1] = 0x80;
+        let data = lpm::get_cam_supported::ResponseData { alt_modes_raw: bytes };
         assert_response_encoding(
             CommandType::GetCamSupported,
             Some(ResponseData::Lpm(lpm::ResponseData::GetCamSupported(data))),
-            &[0x12],
+            &bytes,
         );
     }
 
