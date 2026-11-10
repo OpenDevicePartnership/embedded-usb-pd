@@ -237,30 +237,20 @@ impl<T: PortId> TryFrom<ArgsRaw> for Args<T> {
 }
 
 /// GET_PDO response data, supports up to [`MAX_PDOS`] PDOs
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ResponseData {
     /// Raw PDOs, the first zero PDO terminates the list
-    pub pdos: [u32; MAX_PDOS],
+    pub pdos: heapless::Vec<u32, MAX_PDOS>,
 }
 
-impl ResponseData {
-    /// Iterator over valid PDOs
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = u32> + '_ {
-        // NOTE: If this changes the panic safety comment below should be revisited
-        let last_pdo = self.pdos.iter().position(|&pdo| pdo == 0).unwrap_or(self.pdos.len());
-        // Panic safety: `last_pdo` will always be in bounds
-        #[allow(clippy::indexing_slicing)]
-        self.pdos.as_slice()[..last_pdo].iter().copied()
-    }
-
-    /// Mutable iterator over valid PDOs
-    pub fn iter_mut(&mut self) -> impl ExactSizeIterator<Item = &mut u32> + '_ {
-        // NOTE: If this changes the panic safety comment below should be revisited
-        let last_pdo = self.pdos.iter().position(|&pdo| pdo == 0).unwrap_or(self.pdos.len());
-        // Panic safety: `last_pdo` will always be in bounds
-        #[allow(clippy::indexing_slicing)]
-        self.pdos.as_mut_slice()[..last_pdo].iter_mut()
+#[cfg(feature = "defmt")]
+impl defmt::Format for ResponseData {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(fmt, "ResponseData {{ ");
+        for (i, pdo) in self.pdos.iter().enumerate() {
+            defmt::write!(fmt, "pdo[{}]: {} ", i, pdo);
+        }
+        defmt::write!(fmt, "}}");
     }
 }
 
@@ -286,17 +276,28 @@ impl defmt::Format for ResponseDataRaw {
 
 impl From<ResponseData> for ResponseDataRaw {
     fn from(data: ResponseData) -> Self {
-        Self {
-            pdos: data.pdos.map(U32LE::new),
+        let mut raw = [U32LE::new(0); MAX_PDOS];
+        for (raw, &pdo) in raw.iter_mut().zip(&data.pdos) {
+            *raw = U32LE::new(pdo);
         }
+        Self { pdos: raw }
     }
 }
 
 impl From<ResponseDataRaw> for ResponseData {
     fn from(raw: ResponseDataRaw) -> Self {
-        Self {
-            pdos: raw.pdos.map(U32LE::get),
+        let mut pdos = heapless::Vec::new();
+        for &pdo in &raw.pdos {
+            if pdos.len() == MAX_PDOS || pdo.get() == 0 {
+                break;
+            }
+
+            // Panic safety: Size of array and vec should be the same at compile time,
+            // and we break the loop if we exceed MAX_PDOS, so unwrap is safe.
+            #[allow(clippy::unwrap_used)]
+            pdos.push(pdo.get()).unwrap();
         }
+        Self { pdos }
     }
 }
 
@@ -317,7 +318,7 @@ mod test {
             0x12, 0x00, 0x00, 0x00, 0x34, 0x00, 0x00, 0x00, 0x56, 0x00, 0x00, 0x00, 0x78, 0x00, 0x00, 0x00,
         ];
         let expected = ResponseData {
-            pdos: [0x12, 0x34, 0x56, 0x78],
+            pdos: heapless::Vec::from_slice(&[0x12, 0x34, 0x56, 0x78]).unwrap(),
         };
 
         assert_eq!(
@@ -380,50 +381,5 @@ mod test {
             Args::<GlobalPortId>::try_from(bytemuck::must_cast::<_, ArgsRaw>(encoded)),
             Err(InvalidSourceCapabilityType(0x03))
         );
-    }
-
-    #[test]
-    fn test_response_iterator() {
-        let response = ResponseData {
-            pdos: [0x12, 0x34, 0x56, 0x00],
-        };
-        let mut iter = response.iter();
-        assert_eq!(iter.len(), 3);
-        assert_eq!(iter.next(), Some(0x12));
-        assert_eq!(iter.len(), 2);
-        assert_eq!(iter.next(), Some(0x34));
-        assert_eq!(iter.len(), 1);
-        assert_eq!(iter.next(), Some(0x56));
-        assert_eq!(iter.len(), 0);
-        assert_eq!(iter.next(), None);
-        assert_eq!(iter.len(), 0);
-    }
-
-    #[test]
-    fn test_response_iterator_empty() {
-        let response = ResponseData { pdos: [0x00; MAX_PDOS] };
-        let mut iter = response.iter();
-        assert_eq!(iter.len(), 0);
-        assert_eq!(iter.next(), None);
-        assert_eq!(iter.len(), 0);
-    }
-
-    #[test]
-    fn test_response_iterator_full() {
-        let response = ResponseData {
-            pdos: [0x12, 0x34, 0x56, 0x78],
-        };
-        let mut iter = response.iter();
-        assert_eq!(iter.len(), 4);
-        assert_eq!(iter.next(), Some(0x12));
-        assert_eq!(iter.len(), 3);
-        assert_eq!(iter.next(), Some(0x34));
-        assert_eq!(iter.len(), 2);
-        assert_eq!(iter.next(), Some(0x56));
-        assert_eq!(iter.len(), 1);
-        assert_eq!(iter.next(), Some(0x78));
-        assert_eq!(iter.len(), 0);
-        assert_eq!(iter.next(), None);
-        assert_eq!(iter.len(), 0);
     }
 }
