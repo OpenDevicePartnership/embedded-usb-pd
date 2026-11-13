@@ -30,8 +30,10 @@ pub enum State {
 pub enum Input<'a, T: PortId> {
     /// UCSI command
     Command(&'a ucsi::Command<T>),
-    /// Command completed,
+    /// Command completed successfully,
     CommandComplete,
+    /// Command failed with an error
+    CommandError,
     /// External busy status changed
     BusyChanged,
 }
@@ -53,6 +55,8 @@ pub enum Output<'a, T: PortId> {
     ResetComplete,
     /// Notify OPM that PPM is busy
     OpmNotifyBusy,
+    /// Notify OPM that command failed with an error
+    OpmNotifyCommandError,
 }
 
 pub type GlobalOutput<'a> = Output<'a, GlobalPortId>;
@@ -151,6 +155,7 @@ impl<T: PortId> StateMachine<T> {
                 self.notification_enabled = true;
                 (WaitForCommandCompleteAck, Some(OpmNotifyCommandComplete))
             }
+            (ProcessingCommand, CommandError) => (Idle, Some(OpmNotifyCommandError)),
 
             // WaitForCommandCompleteAck transitions
             (WaitForCommandCompleteAck, Command(ucsi::Command::PpmCommand(ucsi::ppm::Command::AckCcCi(args))))
@@ -319,6 +324,54 @@ mod test {
         let res = sm.consume(Input::Command(&Command::PpmCommand(ppm::Command::Cancel)));
         assert_eq!(res, Ok(Some(Output::OpmNotifyCommandComplete)));
         assert_eq!(sm.state(), State::WaitForCommandCompleteAck)
+    }
+
+    /// Test that a command failing with an error transitions correctly when notification is enabled
+    #[test]
+    fn test_processing_command_error_notification_enabled() {
+        let mut sm = GlobalStateMachine::new();
+        sm.state = State::ProcessingCommand;
+        sm.notification_enabled = true;
+
+        let res = sm.consume(Input::CommandError);
+        assert_eq!(res, Ok(Some(Output::OpmNotifyCommandError)));
+        assert_eq!(sm.state(), State::Idle);
+        assert_eq!(sm.notification_enabled, true);
+
+        // Should not be valid from the idle state
+        let res = sm.consume(Input::CommandError);
+        assert_eq!(
+            res,
+            Err(InvalidTransition {
+                state: State::Idle,
+                notification_enabled: true,
+                input: Input::CommandError
+            })
+        );
+    }
+
+    /// Test that a command failing with an error transitions correctly when notification is disabled
+    #[test]
+    fn test_processing_command_error_notification_disabled() {
+        let mut sm = GlobalStateMachine::new();
+        sm.state = State::ProcessingCommand;
+        sm.notification_enabled = false;
+
+        let res = sm.consume(Input::CommandError);
+        assert_eq!(res, Ok(Some(Output::OpmNotifyCommandError)));
+        assert_eq!(sm.state(), State::Idle);
+        assert_eq!(sm.notification_enabled, false);
+
+        // Should not be valid from the idle state
+        let res = sm.consume(Input::CommandError);
+        assert_eq!(
+            res,
+            Err(InvalidTransition {
+                state: State::Idle,
+                notification_enabled: false,
+                input: Input::CommandError
+            })
+        );
     }
 
     /// Test idle command transitions with notification enabled
