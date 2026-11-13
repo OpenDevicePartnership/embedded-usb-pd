@@ -11,17 +11,13 @@ use crate::ucsi::v1_2::ppm::ack_cc_ci;
 use crate::{GlobalPortId, LocalPortId, PortId};
 
 /// PPM states
-///
-/// The spec does not explicitly distinguish between the Busy(false) and Busy(true) states. But this is done here
-/// because otherwise it would allow to transition from the Idle(false) state to the Idle(true) state without
-/// notifications being enabled.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum State {
-    /// Idle(notification enabled)
-    Idle(bool),
-    /// Busy(notification enabled)
-    Busy(bool),
+    /// Idle
+    Idle,
+    /// Busy
+    Busy,
     /// Processing Command,
     ProcessingCommand,
     /// Waiting for command complete ack
@@ -68,6 +64,8 @@ pub type LocalOutput<'a> = Output<'a, LocalPortId>;
 pub struct InvalidTransition<'a, T: PortId> {
     /// The current state of the state machine
     pub state: State,
+    /// Whether notifications are enabled
+    pub notification_enabled: bool,
     /// The input that was attempted
     pub input: Input<'a, T>,
 }
@@ -77,6 +75,7 @@ pub struct InvalidTransition<'a, T: PortId> {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct StateMachine<T: PortId> {
     state: State,
+    notification_enabled: bool,
     _marker: core::marker::PhantomData<T>,
 }
 
@@ -84,7 +83,8 @@ impl<T: PortId> StateMachine<T> {
     /// Create a new state machine in the Idle(false) state
     pub const fn new() -> Self {
         StateMachine {
-            state: State::Idle(false),
+            state: State::Idle,
+            notification_enabled: false,
             _marker: core::marker::PhantomData,
         }
     }
@@ -92,6 +92,11 @@ impl<T: PortId> StateMachine<T> {
     /// Returns the current state
     pub fn state(&self) -> State {
         self.state
+    }
+
+    /// Returns whether notification is enabled
+    pub fn notification_enabled(&self) -> bool {
+        self.notification_enabled
     }
 
     /// Transition the state machine based on the input and return the output to the OPM if any.
@@ -102,38 +107,48 @@ impl<T: PortId> StateMachine<T> {
 
         let (next_state, output) = match (self.state, input) {
             // Reset transitions
-            (_, Command(ucsi::Command::PpmCommand(ucsi::ppm::Command::PpmReset))) => (Idle(false), Some(ResetComplete)),
+            (_, Command(ucsi::Command::PpmCommand(ucsi::ppm::Command::PpmReset))) => {
+                self.notification_enabled = false;
+                (Idle, Some(ResetComplete))
+            }
 
-            // Idle(false) transitions
-            (Idle(false), Command(cmd @ ucsi::Command::PpmCommand(ucsi::ppm::Command::SetNotificationEnable(_)))) => {
+            // Idle, notification enable status independent transitions
+            (Idle, BusyChanged) => (Busy, None),
+
+            // Idle, notification disabled, transitions
+            (Idle, Command(cmd @ ucsi::Command::PpmCommand(ucsi::ppm::Command::SetNotificationEnable(_))))
+                if !self.notification_enabled =>
+            {
                 (ProcessingCommand, Some(ExecuteCommand(cmd)))
             }
-            (Idle(false), BusyChanged) => (Busy(false), None),
 
             // Busy transitions
-            (Busy(notification_enabled), BusyChanged) => (Idle(notification_enabled), None),
-            (Busy(false), CommandComplete) => (Busy(false), None),
-            (Busy(true), CommandComplete) => (Busy(true), Some(OpmNotifyBusy)),
-            (Busy(true), Command(_cmd)) => (Busy(true), Some(OpmNotifyBusy)),
-            (Busy(false), Command(_cmd)) => (Busy(false), None),
+            (Busy, BusyChanged) => (Idle, None),
+            (Busy, CommandComplete) => (Busy, Some(OpmNotifyBusy)),
+            (Busy, Command(_cmd)) => (Busy, Some(OpmNotifyBusy)),
 
-            // Idle(true) successful transitions
-            (Idle(true), BusyChanged) => (Busy(true), None),
-            (Idle(true), Command(cmd @ ucsi::Command::PpmCommand(ucsi::ppm::Command::AckCcCi(args)))) => {
+            // Idle, notification enabled, successful transitions
+            (Idle, Command(cmd @ ucsi::Command::PpmCommand(ucsi::ppm::Command::AckCcCi(args))))
+                if self.notification_enabled =>
+            {
                 if args.ack.command_complete {
                     // This should only happen in WaitForCommandCompleteAck
                     return Err(InvalidTransition {
                         state: self.state,
+                        notification_enabled: self.notification_enabled,
                         input,
                     });
                 } else {
                     (ProcessingCommand, Some(ExecuteCommand(cmd)))
                 }
             }
-            (Idle(true), Command(cmd)) => (ProcessingCommand, Some(ExecuteCommand(cmd))),
+            (Idle, Command(cmd)) if self.notification_enabled => (ProcessingCommand, Some(ExecuteCommand(cmd))),
 
             // ProcessingCommand transitions
             (ProcessingCommand, CommandComplete | Command(ucsi::Command::PpmCommand(ucsi::ppm::Command::Cancel))) => {
+                // If we're here, notification have to be enabled because this is either the command complete for a set notification,
+                // or it's for a different command which means that set notification was already executed
+                self.notification_enabled = true;
                 (WaitForCommandCompleteAck, Some(OpmNotifyCommandComplete))
             }
 
@@ -141,13 +156,14 @@ impl<T: PortId> StateMachine<T> {
             (WaitForCommandCompleteAck, Command(ucsi::Command::PpmCommand(ucsi::ppm::Command::AckCcCi(args))))
                 if args.ack.command_complete =>
             {
-                (Idle(true), Some(AckComplete(args.ack)))
+                (Idle, Some(AckComplete(args.ack)))
             }
 
             // Invalid transition
             _ => {
                 return Err(InvalidTransition {
                     state: self.state,
+                    notification_enabled: self.notification_enabled,
                     input,
                 })
             }
@@ -177,47 +193,57 @@ mod test {
         let mut sm = GlobalStateMachine::new();
 
         // Test reset from all states
-        sm.state = State::Idle(false);
+        sm.state = State::Idle;
         let res = sm.consume(Input::Command(&Command::PpmCommand(ppm::Command::PpmReset)));
         assert_eq!(res, Ok(Some(Output::ResetComplete)));
-        assert_eq!(sm.state(), State::Idle(false));
+        assert_eq!(sm.state(), State::Idle);
+        assert_eq!(sm.notification_enabled, false);
 
         // Test reset from Idle(true)
-        sm.state = State::Idle(true);
+        sm.state = State::Idle;
+        sm.notification_enabled = true;
         let res = sm.consume(Input::Command(&Command::PpmCommand(ppm::Command::PpmReset)));
         assert_eq!(res, Ok(Some(Output::ResetComplete)));
-        assert_eq!(sm.state(), State::Idle(false));
+        assert_eq!(sm.state(), State::Idle);
+        assert_eq!(sm.notification_enabled, false);
 
         // Test reset from Busy(false)
-        sm.state = State::Busy(false);
+        sm.state = State::Busy;
+        sm.notification_enabled = false;
         let res = sm.consume(Input::Command(&Command::PpmCommand(ppm::Command::PpmReset)));
         assert_eq!(res, Ok(Some(Output::ResetComplete)));
-        assert_eq!(sm.state(), State::Idle(false));
+        assert_eq!(sm.state(), State::Idle);
+        assert_eq!(sm.notification_enabled, false);
 
         // Test reset from Busy(true)
-        sm.state = State::Busy(true);
+        sm.state = State::Busy;
+        sm.notification_enabled = true;
         let res = sm.consume(Input::Command(&Command::PpmCommand(ppm::Command::PpmReset)));
         assert_eq!(res, Ok(Some(Output::ResetComplete)));
-        assert_eq!(sm.state(), State::Idle(false));
+        assert_eq!(sm.state(), State::Idle);
+        assert_eq!(sm.notification_enabled, false);
 
         // Test reset from ProcessingCommand
         sm.state = State::ProcessingCommand;
         let res = sm.consume(Input::Command(&Command::PpmCommand(ppm::Command::PpmReset)));
         assert_eq!(res, Ok(Some(Output::ResetComplete)));
-        assert_eq!(sm.state(), State::Idle(false));
+        assert_eq!(sm.state(), State::Idle);
+        assert_eq!(sm.notification_enabled, false);
 
         // Test reset from WaitForCommandCompleteAck
         sm.state = State::WaitForCommandCompleteAck;
         let res = sm.consume(Input::Command(&Command::PpmCommand(ppm::Command::PpmReset)));
         assert_eq!(res, Ok(Some(Output::ResetComplete)));
-        assert_eq!(sm.state(), State::Idle(false));
+        assert_eq!(sm.state(), State::Idle);
+        assert_eq!(sm.notification_enabled, false);
     }
 
-    /// Test that only SET_NOTIFICATION_ENABLE works from Idle(false)
+    /// Test that only SET_NOTIFICATION_ENABLE works from Idle when notification is disabled
     #[test]
-    fn test_idle_false_commands() {
+    fn test_idle_notification_disabled_commands() {
         let mut sm = GlobalStateMachine::new();
-        sm.state = State::Idle(false);
+        sm.state = State::Idle;
+        sm.notification_enabled = false;
 
         // Valid command
         let cmd = Command::PpmCommand(ppm::Command::SetNotificationEnable(
@@ -226,22 +252,32 @@ mod test {
         let res = sm.consume(Input::Command(&cmd));
         assert_eq!(res, Ok(Some(Output::ExecuteCommand(&cmd))));
         assert_eq!(sm.state(), State::ProcessingCommand);
+        assert_eq!(sm.notification_enabled, false);
+
+        let res = sm.consume(Input::CommandComplete);
+        assert_eq!(res, Ok(Some(Output::OpmNotifyCommandComplete)));
+        assert_eq!(sm.state(), State::WaitForCommandCompleteAck);
+        assert_eq!(sm.notification_enabled, true);
 
         // Invalid PPM command
-        sm.state = State::Idle(false);
+        sm.state = State::Idle;
+        sm.notification_enabled = false;
         let cmd = Command::PpmCommand(ppm::Command::AckCcCi(ucsi::ppm::ack_cc_ci::Args::default()));
         let res = sm.consume(Input::Command(&cmd));
         assert_eq!(
             res,
             Err(InvalidTransition {
-                state: State::Idle(false),
+                state: State::Idle,
+                notification_enabled: false,
                 input: Input::Command(&cmd)
             })
         );
-        assert_eq!(sm.state(), State::Idle(false));
+        assert_eq!(sm.state(), State::Idle);
+        assert_eq!(sm.notification_enabled, false);
 
         // Invalid LPM command
-        sm.state = State::Idle(false);
+        sm.state = State::Idle;
+        sm.notification_enabled = false;
         let cmd = Command::LpmCommand(ucsi::lpm::Command::new(lpm::CommandData::GetPdos(
             lpm::get_pdos::Args::default(),
         )));
@@ -249,11 +285,13 @@ mod test {
         assert_eq!(
             res,
             Err(InvalidTransition {
-                state: State::Idle(false),
+                state: State::Idle,
+                notification_enabled: false,
                 input: Input::Command(&cmd)
             })
         );
-        assert_eq!(sm.state(), State::Idle(false));
+        assert_eq!(sm.state(), State::Idle);
+        assert_eq!(sm.notification_enabled, false);
     }
 
     /// Test that cancel works while processing a command, but no other commands are accepted
@@ -261,6 +299,7 @@ mod test {
     fn test_processing_commands() {
         let mut sm = GlobalStateMachine::new();
         sm.state = State::ProcessingCommand;
+        sm.notification_enabled = true;
 
         // State machine is already in processing command state, should fail
         let cmd = Command::LpmCommand(lpm::Command::new(lpm::CommandData::GetPdos(
@@ -271,6 +310,7 @@ mod test {
             res,
             Err(InvalidTransition {
                 state: State::ProcessingCommand,
+                notification_enabled: true,
                 input: Input::Command(&cmd)
             })
         );
@@ -281,11 +321,12 @@ mod test {
         assert_eq!(sm.state(), State::WaitForCommandCompleteAck)
     }
 
-    /// Test idle true command transitions
+    /// Test idle command transitions with notification enabled
     #[test]
-    fn test_idle_true_commands() {
+    fn test_idle_notification_enabled_commands() {
         let mut sm = GlobalStateMachine::new();
-        sm.state = State::Idle(true);
+        sm.state = State::Idle;
+        sm.notification_enabled = true;
 
         // Test simple command execution
         let cmd = Command::LpmCommand(lpm::Command::new(lpm::CommandData::GetPdos(
@@ -296,7 +337,8 @@ mod test {
         assert_eq!(sm.state(), State::ProcessingCommand);
 
         // Test rejection of command completion ACK
-        sm.state = State::Idle(true);
+        sm.state = State::Idle;
+        sm.notification_enabled = true;
         let cmd = Command::PpmCommand(ppm::Command::AckCcCi(ppm::ack_cc_ci::Args {
             ack: ppm::ack_cc_ci::Ack {
                 command_complete: true,
@@ -307,14 +349,17 @@ mod test {
         assert_eq!(
             res,
             Err(InvalidTransition {
-                state: State::Idle(true),
+                state: State::Idle,
+                notification_enabled: true,
                 input: Input::Command(&cmd)
             })
         );
-        assert_eq!(sm.state(), State::Idle(true));
+        assert_eq!(sm.state(), State::Idle);
+        assert_eq!(sm.notification_enabled, true);
 
         // Test acceptance of connector change ACK
-        sm.state = State::Idle(true);
+        sm.state = State::Idle;
+        sm.notification_enabled = true;
         let cmd = Command::PpmCommand(ppm::Command::AckCcCi(ppm::ack_cc_ci::Args {
             ack: ppm::ack_cc_ci::Ack {
                 connector_change: true,
@@ -331,6 +376,7 @@ mod test {
     fn test_wait_for_command_complete_ack_commands() {
         let mut sm = GlobalStateMachine::new();
         sm.state = State::WaitForCommandCompleteAck;
+        sm.notification_enabled = true;
 
         // Command complete ACK should succeed
         let ack = ppm::ack_cc_ci::Ack {
@@ -340,7 +386,8 @@ mod test {
         let cmd = Command::PpmCommand(ppm::Command::AckCcCi(ppm::ack_cc_ci::Args { ack }));
         let res = sm.consume(Input::Command(&cmd));
         assert_eq!(res, Ok(Some(Output::AckComplete(ack))));
-        assert_eq!(sm.state(), State::Idle(true));
+        assert_eq!(sm.state(), State::Idle);
+        assert_eq!(sm.notification_enabled, true);
 
         // Connector change ACK only should fail
         sm.state = State::WaitForCommandCompleteAck;
@@ -355,6 +402,7 @@ mod test {
             res,
             Err(InvalidTransition {
                 state: State::WaitForCommandCompleteAck,
+                notification_enabled: true,
                 input: Input::Command(&cmd)
             })
         );
@@ -370,31 +418,23 @@ mod test {
             res,
             Err(InvalidTransition {
                 state: State::WaitForCommandCompleteAck,
+                notification_enabled: true,
                 input: Input::Command(&cmd)
             })
         );
         assert_eq!(sm.state(), State::WaitForCommandCompleteAck);
     }
 
-    /// Test response when attempting to execute a command when busy, with notifications enabled
+    /// Test response when attempting to execute a command when busy, with notification enabled
     #[test]
     fn test_busy_notify() {
         let mut sm = GlobalStateMachine::new();
-        sm.state = State::Busy(true);
+        sm.state = State::Busy;
+        sm.notification_enabled = true;
 
         let result = sm.consume(Input::Command(&Command::PpmCommand(ppm::Command::GetCapability)));
         assert_eq!(result, Ok(Some(Output::OpmNotifyBusy)));
-        assert_eq!(sm.state(), State::Busy(true));
-    }
-
-    /// Test response when attempting to execute a command when busy, with notifications disabled
-    #[test]
-    fn test_busy_no_notify() {
-        let mut sm = GlobalStateMachine::new();
-        sm.state = State::Busy(false);
-
-        let result = sm.consume(Input::Command(&Command::PpmCommand(ppm::Command::GetCapability)));
-        assert_eq!(result, Ok(None));
-        assert_eq!(sm.state(), State::Busy(false));
+        assert_eq!(sm.state(), State::Busy);
+        assert_eq!(sm.notification_enabled, true);
     }
 }
