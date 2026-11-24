@@ -14,6 +14,11 @@ version = "1.10.2"
 notes = "Changes support more types of structs and enums, no unsafe changes to the generated code."
 aggregated-from = "https://raw.githubusercontent.com/OpenDevicePartnership/tps6699x/refs/heads/main/supply-chain/audits.toml"
 
+[[audits.heapless]]
+who = "Felipe Balbi <felipe.balbi@microsoft.com>"
+criteria = "safe-to-deploy"
+delta = "0.9.3 -> 0.9.4"
+
 [[audits.include_dir]]
 who = "Robert Zieba <robertzieba@microsoft.com>"
 criteria = "safe-to-deploy"
